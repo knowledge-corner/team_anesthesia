@@ -79,4 +79,6 @@ for i, (ago, h, s, proc, fee, frac) in enumerate(plan):
 for i, name in enumerate(["Shobha Kamat", "Ravi Naik", "Uma Bapat", "Ganesh Lele"]):
     Case.objects.create(doctor=d2, hospital=H["jeh"], surgeon=S["shah"], case_date=today - datetime.timedelta(days=i * 9 + 2),
                         patient_name=name, procedure_type="Arthroscopy - GA", fee=Decimal(6000), created_by=u2)
+# A hospital added twice under another spelling (for the "merge duplicates" screenshots)
+Hospital.objects.create(name="Jehangir", city="Pune", source="doctor", created_by=u2)
 print("cases", Case.objects.count())

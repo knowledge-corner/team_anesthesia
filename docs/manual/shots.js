@@ -65,6 +65,9 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
     await p.selectOption('#id_doctor', { index: 0 });
     await p.click('#id_hospital_search'); await p.fill('#id_hospital_search', 'ruby'); await p.waitForTimeout(900);
     await shot(p, '21-hospital-search', { hl: ['.combo-add'] });
+    await p.fill('#id_hospital_search', 'jehangeer'); await p.waitForTimeout(1200);
+    await shot(p, '21b-did-you-mean', { hl: ['.combo-group'] });
+    await p.fill('#id_hospital_search', 'ruby'); await p.waitForTimeout(1200);
     await p.click('.combo-item >> nth=0'); await p.waitForTimeout(900);
     await p.fill('#id_fee', '9000'); await p.fill('#id_patient_name', 'Mohan Patil');
     await shot(p, '22-add-case-filled', { scroll: '#id_case_date', hl: ['#id_surgeon_search', '#id_patient_name'] });
@@ -88,6 +91,8 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
   await step('addhospital', async () => {
     await p.goto(B + '/hospitals/add/?next=/cases/add/&name=Shree%20Clinic'); await p.fill('#id_city', 'Pune'); await p.fill('#id_area', 'Baner');
     await shot(p, '29-add-hospital');
+    await p.goto(B + '/hospitals/add/?next=/cases/add/&name=Sahyadri%20Kothrud%20Hospital'); await p.fill('#id_city', 'Pune');
+    await shot(p, '29b-is-it-one-of-these', { hl: ['#similar-hospitals'] });
   });
   // Bulk upload
   await step('bulk', async () => {
@@ -168,6 +173,9 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
     await p.goto(B + '/cases/add/'); await shot(p, '96-admin-add-case', { hl: ['#id_doctor, #id_doctor_search'] });
     await p.goto(B + '/settings/'); await shot(p, '97-settings');
     await p.goto(B + '/hospitals/directory/import/'); await shot(p, '98-directory-import');
+    await p.goto(B + '/hospitals/duplicates/'); await shot(p, '99-duplicates', { hl: ['form[action="/hospitals/merge/"] .btn-primary'] });
+    await Promise.all([p.waitForLoadState(), p.click('form[action="/hospitals/merge/"] button.btn-primary >> nth=0')]);
+    await shot(p, '99b-merge-confirm', { hl: ['.form-actions .btn-primary'] });
   });
   console.log('ERRORS:\n' + errors.join('\n'));
   await browser.close();

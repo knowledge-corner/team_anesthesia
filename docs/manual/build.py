@@ -157,12 +157,17 @@ topic("Adding a case for a colleague", [
 topic("Step 2 - Choose the hospital", [
     "Tap the <b>Hospital</b> box and type a few letters of the name or area, e.g. <i>ruby</i> or <i>kothrud</i>.",
     "Pick the right hospital from the list. Hospitals the practice already works with show a green <b>Mine</b> tag.",
+    "Spelling not sure? The app also shows close matches under <b>Did you mean?</b> - e.g. <i>seathurney</i> finds "
+    "<i>Seatherney Hospital</i>. Words like <i>hospital</i> or <i>clinic</i> do not need to be typed.",
     "Not in the list? Tap <b>Add a hospital not in the list</b> (see next step).",
-], img="21-hospital-search")
+], img="21-hospital-search", img2="21b-did-you-mean", caption="Search", caption2="Did you mean?")
 topic("Hospital not in the list? Add it", [
     "Type the <b>Name</b>, <b>Area</b> and <b>City</b>. Other details are optional.",
     "Tap <b>Save hospital</b>. You return to Add Case with the new hospital already chosen.",
-], img="29-add-hospital", tip="The new hospital is saved straight away - no approval needed.")
+    "If a hospital with a similar name already exists, the app asks <b>Is it one of these?</b> Tap <b>Use this one</b>, "
+    "or <b>No, it's a different hospital - add it</b>.",
+], img="29-add-hospital", img2="29b-is-it-one-of-these", caption="Add a hospital", caption2="Similar hospital found",
+   tip="This stops the same hospital being added twice under different spellings.")
 topic("Step 3 - Date, fee, patient and surgeon", [
     "<b>Case date</b> is today by default. Change it if the case was on another day.",
     "Type the <b>Fee</b> in rupees (numbers only, e.g. 9000).",
@@ -453,6 +458,16 @@ topic("Hospital directory", [
     "(optional: Location, Address, Pincode, Telephone). The data.gov.in hospital file works too. "
     "Only the districts you list (Pune, Mumbai by default) are added.",
 ], img="98-directory-import")
+topic("Merge duplicate hospitals", [
+    "Same hospital added twice (e.g. <i>Seatherney</i> and <i>Seatherney Hospital</i>)? Hospital directory → "
+    "<b>Possible duplicates</b>, or <b>Merge</b> on a hospital's page.",
+    "For each group choose the hospital to <b>Keep</b>, tick the ones to <b>Merge</b>, tap <b>Merge selected</b>.",
+    "The next page shows exactly what moves (cases, contacts, surgeons). Tap <b>Yes, merge</b>.",
+    "Cases with their payments and follow-ups, contacts and surgeons move to the kept hospital. The other "
+    "spelling is saved as an <b>Other name</b>, so searching it still finds the hospital.",
+    "Nothing is deleted. Made a mistake? <b>Merge history</b> → <b>Undo</b> puts everything back.",
+], img="99-duplicates", img2="99b-merge-confirm", caption="Possible duplicates", caption2="Confirm merge",
+   note="Only the administrator can merge. Tip: run <b>payments backup</b> on the server before a large clean-up.")
 
 # --------------------------------------------------------------------------- FAQ
 sec("faq", "14. Questions and quick help")
@@ -464,7 +479,8 @@ table("Common questions", ["Question", "Answer"], [
     ["I did not get a notification.", "Reminders come only on the expected payment date (or a date you set), at your notification time. "
      "Open <b>Notification settings</b>: <b>Send a test</b> must arrive, and the <b>Automatic reminders</b> box must say "
      "<b>Reminder sender is running</b>. If it says it has not run, tell your administrator."],
-    ["I can't find a hospital.", "Try fewer letters or the area name. Still missing? Tap <b>Add a hospital not in the list</b>."],
+    ["I can't find a hospital.", "Try fewer letters or the area name, and look under <b>Did you mean?</b>. Still missing? Tap <b>Add a hospital not in the list</b>."],
+    ["The same hospital is in the list twice.", "Tell the administrator - they merge the two (all cases are kept, and it can be undone)."],
     ["The surgeon list is empty for a hospital.", "Use <b>New surgeon</b> once; next time they appear first for that hospital."],
     ["My bulk upload saved nothing.", "Some rows had mistakes. Fix the red cells and upload the same file again."],
     ["I see an old version of a screen.", "Close the app fully and open it again (or pull down to refresh)."],
