@@ -5,10 +5,25 @@
   <a href="{% if hospital %}{{ hospital.get_absolute_url }}{% elif next %}{{ next }}{% else %}{% url 'hospitals:list' %}{% endif %}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
   <h1 class="h5 mb-0">{% if hospital %}Edit {{ hospital.name }}{% else %}Add a hospital{% endif %}</h1>
 </div>
-{% if not hospital %}<p class="small text-muted" style="max-width:640px">Add a hospital that is not in the list. It is saved straight away and you can pick it on your cases.</p>{% endif %}
+{% if not hospital %}<p class="small text-muted" style="max-width:640px">Add a hospital that is not in the list. If a hospital with a similar name already exists, you are shown it first so the same hospital is not added twice.</p>{% endif %}
 <form method="post" novalidate style="max-width: 640px;">{% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   {% include "partials/form_errors.html" %}
+  {% if similar %}
+  <div class="card p-3 mb-3 border-warning" id="similar-hospitals">
+    <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle text-warning"></i> Is it one of these?</div>
+    <div class="small text-muted mb-2">These hospitals are already in the list. Use one of them instead of adding the same hospital twice.</div>
+    <div class="list-group mb-2">
+      {% for h in similar %}
+      <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+        <div class="min-w-0"><div class="fw-semibold">{{ h.name }}</div><div class="small text-muted">{{ h.place|default:"" }}</div></div>
+        <a href="{{ h.use_url }}" class="btn btn-sm btn-primary flex-shrink-0">Use this one</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% if similar_checked %}<button class="btn btn-outline-secondary btn-sm" name="confirm_new" value="1"><i class="bi bi-plus-lg"></i> No, it's a different hospital - add it</button>{% endif %}
+  </div>
+  {% endif %}
   <div class="card p-3">
     {% for field in form %}{% include "partials/field.html" %}{% endfor %}
     <datalist id="city-options">{% for c in cities %}<option value="{{ c }}">{% endfor %}</datalist>

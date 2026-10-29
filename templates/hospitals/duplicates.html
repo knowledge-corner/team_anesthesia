@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Possible duplicate hospitals{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <a href="{% url 'hospitals:directory_import' %}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
+  <h1 class="h5 mb-0">Possible duplicate hospitals</h1>
+</div>
+<div style="max-width: 760px;">
+  <p class="small text-muted">Hospitals in the same city whose names look alike. For each group choose the one to
+    <b>keep</b> and tick the ones to merge into it. Their cases, contacts and surgeons move to the kept hospital,
+    their names stay searchable, and nothing is deleted - every merge can be undone below.</p>
+
+  {% for group in groups %}
+  <form method="post" action="{% url 'hospitals:merge' %}" class="card p-3 mb-3">{% csrf_token %}
+    <div class="table-responsive">
+    <table class="table table-sm align-middle mb-2 small">
+      <thead><tr><th>Keep</th><th>Merge</th><th>Hospital</th><th class="text-end">Cases</th><th class="text-end d-none d-sm-table-cell">Contacts</th><th class="text-end d-none d-sm-table-cell">Surgeons</th></tr></thead>
+      <tbody>
+      {% for h in group %}
+        <tr>
+          <td><input class="form-check-input" type="radio" name="keep" value="{{ h.pk }}" {% if h.suggest_keep %}checked{% endif %} aria-label="Keep {{ h.name }}"></td>
+          <td><input class="form-check-input" type="checkbox" name="merge" value="{{ h.pk }}" {% if not h.suggest_keep %}checked{% endif %} aria-label="Merge {{ h.name }}"></td>
+          <td><a href="{{ h.get_absolute_url }}" class="fw-semibold">{{ h.name }}</a><div class="text-muted">{{ h.place }} · {{ h.get_source_display }}</div></td>
+          <td class="text-end">{{ h.n_cases }}</td><td class="text-end d-none d-sm-table-cell">{{ h.n_contacts }}</td><td class="text-end d-none d-sm-table-cell">{{ h.n_surgeons }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <button class="btn btn-primary btn-sm"><i class="bi bi-intersect"></i> Merge selected…</button>
+      <span class="small text-muted">Not the same hospital? Simply leave this group as it is.</span>
+    </div>
+  </form>
+  {% empty %}
+  <div class="card p-4 text-center text-muted small mb-3"><i class="bi bi-check2-circle fs-3 text-success d-block mb-1"></i>No likely duplicates found.</div>
+  {% endfor %}
+
+  <div class="section-title">Merge any two hospitals</div>
+  <form method="post" action="{% url 'hospitals:merge' %}" class="card p-3 mb-3">{% csrf_token %}
+    <div class="mb-2">
+      <label class="form-label small mb-1" for="id_merge_one">Duplicate (will be merged)</label>
+      <select name="merge" id="id_merge_one" class="form-select" data-searchable data-search-url="{% url 'hospitals:search' %}" data-placeholder="Type hospital name">
+        <option value="">Choose hospital</option>
+        {% if prefill %}<option value="{{ prefill.pk }}" selected>{{ prefill.label }}</option>{% endif %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label small mb-1" for="id_keep_one">Keep this hospital</label>
+      <select name="keep" id="id_keep_one" class="form-select" data-searchable data-search-url="{% url 'hospitals:search' %}" data-placeholder="Type hospital name">
+        <option value="">Choose hospital</option>
+      </select>
+    </div>
+    <button class="btn btn-outline-primary btn-sm"><i class="bi bi-intersect"></i> Merge…</button>
+  </form>
+
+  <div class="section-title">Merge history</div>
+  <div class="card mb-3">
+    <div class="list-group list-group-flush small">
+    {% for m in history %}
+      <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
+        <div class="min-w-0">
+          <div><b>{{ m.merged.name }}</b> → <a href="{{ m.kept.get_absolute_url }}">{{ m.kept.name }}</a></div>
+          <div class="text-muted">{{ m.created_at|date:"d M Y, H:i" }}{% if m.merged_by %} · {{ m.merged_by.username }}{% endif %}
+            · {{ m.details.cases|length }} case{{ m.details.cases|length|pluralize }}
+            {% if m.undone_at %}· <span class="text-warning">undone {{ m.undone_at|date:"d M Y" }}</span>{% endif %}</div>
+        </div>
+        {% if not m.undone_at %}
+        <form method="post" action="{% url 'hospitals:merge_undo' m.pk %}">{% csrf_token %}
+          <button class="btn btn-sm btn-outline-secondary" data-confirm="Undo this merge? {{ m.merged.name }} becomes a separate hospital again with its own cases.">Undo</button>
+        </form>
+        {% endif %}
+      </div>
+    {% empty %}<div class="list-group-item text-muted">No merges yet.</div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

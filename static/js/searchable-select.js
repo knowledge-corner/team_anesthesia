@@ -131,7 +131,7 @@
           .then(function (data) {
             if (mine !== requestNo) return; // a newer search is running
             var items = head.concat((data.results || []).map(function (r) {
-              return { value: String(r.id), label: r.label, sub: r.sub, mine: r.mine };
+              return { value: String(r.id), label: r.label, sub: r.sub, mine: r.mine, group: r.group || "" };
             }));
             paint(items, tokens, query);
           })

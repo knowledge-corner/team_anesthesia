@@ -38,11 +38,14 @@ class HospitalViewTests(TestCase):
         data = self.client.get(reverse("hospitals:search"), {"q": "sahyadri test"}).json()
         self.assertEqual([r["id"] for r in data["results"]], [mine.pk])
 
-    def test_add_hospital_saves_straight_away_even_if_name_exists(self):
-        make_hospital("Lotus Care Hospital", city="Pune")
-        response = self.client.post(reverse("hospitals:add") + "?next=/cases/add/", {
-            "name": "Lotus Care Hospital", "city": "Pune", "category": "hospital", "next": "/cases/add/",
-        })
+    def test_add_hospital_with_existing_name_asks_first_then_saves(self):
+        existing = make_hospital("Lotus Care Hospital", city="Pune")
+        data = {"name": "Lotus Care Hospital", "city": "Pune", "category": "hospital", "next": "/cases/add/"}
+        response = self.client.post(reverse("hospitals:add") + "?next=/cases/add/", data)
+        self.assertContains(response, "Is it one of these?")
+        self.assertContains(response, f"/cases/add/?hospital={existing.pk}")
+        self.assertEqual(Hospital.objects.filter(name="Lotus Care Hospital").count(), 1)
+        response = self.client.post(reverse("hospitals:add") + "?next=/cases/add/", {**data, "confirm_new": "1"})
         added = Hospital.objects.filter(name="Lotus Care Hospital").latest("pk")
         self.assertEqual(Hospital.objects.filter(name="Lotus Care Hospital").count(), 2)
         self.assertRedirects(response, f"/cases/add/?hospital={added.pk}", fetch_redirect_response=False)

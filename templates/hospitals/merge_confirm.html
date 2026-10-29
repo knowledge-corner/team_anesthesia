@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Confirm merge{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <a href="{% url 'hospitals:duplicates' %}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
+  <h1 class="h5 mb-0">Confirm merge</h1>
+</div>
+<form method="post" action="{% url 'hospitals:merge' %}" style="max-width: 640px;">{% csrf_token %}
+  <input type="hidden" name="keep" value="{{ keep.pk }}">
+  <input type="hidden" name="confirm" value="1">
+  <div class="card p-3 mb-3">
+    <div class="small text-muted">Keep</div>
+    <div class="fw-semibold">{{ keep.name }}</div>
+    <div class="small text-muted">{{ keep.place }} · {{ keep.n_cases }} case{{ keep.n_cases|pluralize }} now</div>
+  </div>
+  <div class="card p-3 mb-3">
+    <div class="small text-muted mb-1">Merge into it</div>
+    {% for h in others %}
+      <input type="hidden" name="merge" value="{{ h.pk }}">
+      <div class="py-2 {% if not forloop.last %}border-bottom{% endif %}">
+        <div class="fw-semibold">{{ h.name }}</div>
+        <div class="small text-muted">{{ h.place }} · moves {{ h.preview.cases }} case{{ h.preview.cases|pluralize }},
+          {{ h.preview.contacts }} contact link{{ h.preview.contacts|pluralize }}, {{ h.preview.surgeons }} surgeon link{{ h.preview.surgeons|pluralize }}</div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="alert alert-info small">
+    Payments and follow-ups stay with their cases. The merged names are kept as "Other names" of
+    <b>{{ keep.name }}</b>, so searching either spelling finds it. Nothing is deleted, and the merge can be undone from the
+    merge history.
+  </div>
+  <div class="form-actions d-flex gap-2">
+    <a href="{% url 'hospitals:duplicates' %}" class="btn btn-outline-secondary btn-lg-touch">Cancel</a>
+    <button class="btn btn-primary btn-lg-touch flex-fill"><i class="bi bi-intersect"></i> Yes, merge</button>
+  </div>
+</form>
+{% endblock %}

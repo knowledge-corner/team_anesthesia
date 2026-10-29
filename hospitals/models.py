@@ -17,9 +17,15 @@ class HospitalQuerySet(models.QuerySet):
         return self.filter(is_active=True, merged_into__isnull=True)
 
     def search(self, query):
-        """Every word must appear somewhere in the name, other names, area or city."""
+        """Every word must appear somewhere in the name, other names, area or city.
+
+        Generic words (hospital, clinic, pvt ltd, ...) are ignored, so "Seatherney Hospital"
+        also finds a hospital saved as just "Seatherney".
+        """
+        from .matching import meaningful_words
+
         qs = self
-        for word in normalise_name(query).split():
+        for word in meaningful_words(query):
             qs = qs.filter(
                 models.Q(name__icontains=word) | models.Q(aliases__icontains=word)
                 | models.Q(area__icontains=word) | models.Q(city__icontains=word)
@@ -51,7 +57,7 @@ class Hospital(TimeStampedModel):
     ]
 
     name = models.CharField(max_length=200, db_index=True)
-    aliases = models.CharField("Other names", max_length=300, blank=True,
+    aliases = models.CharField("Other names", max_length=1000, blank=True,
                                help_text="Short or old names people search for, comma separated (e.g. KEM, Deenanath).")
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="hospital")
     ownership = models.CharField(max_length=20, choices=OWNERSHIP_CHOICES, blank=True)
@@ -91,3 +97,23 @@ class Hospital(TimeStampedModel):
 
     def get_absolute_url(self):
         return reverse("hospitals:detail", args=[self.pk])
+
+
+class HospitalMerge(models.Model):
+    """Log of one merge (duplicate -> kept hospital) with everything that moved, so it can be undone."""
+
+    kept = models.ForeignKey(Hospital, on_delete=models.PROTECT, related_name="merges_in")
+    merged = models.ForeignKey(Hospital, on_delete=models.PROTECT, related_name="merges_out")
+    merged_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                  related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    details = models.JSONField(default=dict)
+    undone_at = models.DateTimeField(null=True, blank=True)
+    undone_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                  related_name="+")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.merged} -> {self.kept}"

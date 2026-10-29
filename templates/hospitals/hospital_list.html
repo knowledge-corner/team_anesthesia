@@ -37,6 +37,6 @@
   </div>
 </div>
 {% if user.is_app_admin %}
-<div class="small text-muted mt-3"><i class="bi bi-shield-check"></i> Admin: <a href="{% url 'hospitals:directory_import' %}">import hospital directory</a></div>
+<div class="small text-muted mt-3"><i class="bi bi-shield-check"></i> Admin: <a href="{% url 'hospitals:directory_import' %}">import hospital directory</a> · <a href="{% url 'hospitals:duplicates' %}">possible duplicates / merge</a></div>
 {% endif %}
 {% endblock %}

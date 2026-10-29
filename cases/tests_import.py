@@ -153,3 +153,9 @@ class ImportFlowTests(TestCase):
         f = workbook_file([[self.day, "Ruby Hall Clinic", 1000, ""]], headers=headers)
         self.upload(f)
         self.assertEqual(Case.objects.get().doctor, self.doctor)
+
+    def test_other_spelling_of_existing_hospital_is_matched(self):
+        make_hospital("Seatherney Hospital", city="Pune")
+        self.upload(workbook_file([[self.day, "Seatherney", 4000]]))
+        self.assertEqual(Case.objects.get(fee=4000).hospital.name, "Seatherney Hospital")
+        self.assertFalse(Hospital.objects.filter(name="Seatherney").exists())

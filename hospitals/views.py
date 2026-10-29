@@ -1,7 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Max
+from django.db.models import Count, Max
+from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -11,7 +12,9 @@ from core.permissions import admin_required, scoped_cases
 
 from .directory import import_directory
 from .forms import CITY_SUGGESTIONS, AdminHospitalForm, DirectoryImportForm, HospitalForm
-from .models import Hospital
+from .matching import duplicate_groups, find_similar
+from .merge import MergeError, merge_hospitals, merge_preview, undo_merge
+from .models import Hospital, HospitalMerge
 
 
 def my_hospital_ids(request):
@@ -72,9 +75,14 @@ def hospital_search(request):
     else:
         qs = list(Hospital.objects.filter(pk__in=mine, is_active=True))
     qs.sort(key=lambda h: (h.pk not in mine, h.name.lower()))
-    return JsonResponse({"results": [
-        {"id": h.pk, "label": h.name, "sub": h.place, "mine": h.pk in mine} for h in qs[:20]
-    ]})
+    results = [{"id": h.pk, "label": h.name, "sub": h.place, "mine": h.pk in mine} for h in qs[:20]]
+    # Spelling mistakes: offer close matches so nobody adds the same hospital twice.
+    if q and len(results) < 5:
+        shown = {r["id"] for r in results}
+        for h in find_similar(q, exclude_ids=shown, limit=5 - len(results)):
+            results.append({"id": h.pk, "label": h.name, "sub": h.place, "mine": h.pk in mine,
+                            "group": "Did you mean?"})
+    return JsonResponse({"results": results})
 
 
 @login_required
@@ -111,20 +119,33 @@ def hospital_add(request):
     form_class = AdminHospitalForm if is_admin else HospitalForm
     initial = {"name": request.GET.get("name", ""), "city": request.GET.get("city", "")}
     form = form_class(request.POST or None, initial=initial)
+    nxt = _safe_next(request)
+    similar = []
     if request.method == "POST" and form.is_valid():
+        # Before creating a new hospital, show ones that look the same ("Seatherney" vs "Seatherney Hospital").
+        if not request.POST.get("confirm_new"):
+            similar = find_similar(form.cleaned_data["name"], form.cleaned_data.get("city", ""))
+    elif initial["name"]:
+        similar = find_similar(initial["name"], initial["city"])
+    if request.method == "POST" and form.is_valid() and not similar:
         hospital = form.save(commit=False)
         hospital.source = "admin" if is_admin else "doctor"
         hospital.created_by = request.user
         hospital.verified = True
         hospital.save()
         messages.success(request, f"{hospital} added to the hospital list.")
-        nxt = _safe_next(request)
         if nxt:
             sep = "&" if "?" in nxt else "?"
             return redirect(f"{nxt}{sep}hospital={hospital.pk}")
         return redirect(hospital)
+    for h in similar:
+        if nxt:
+            h.use_url = f"{nxt}{'&' if '?' in nxt else '?'}hospital={h.pk}"
+        else:
+            h.use_url = h.get_absolute_url()
     return render(request, "hospitals/hospital_form.html", {
-        "form": form, "hospital": None, "cities": CITY_SUGGESTIONS, "next": _safe_next(request) or "",
+        "form": form, "hospital": None, "cities": CITY_SUGGESTIONS, "next": nxt or "",
+        "similar": similar, "similar_checked": request.method == "POST",
     })
 
 
@@ -161,3 +182,75 @@ def directory_import(request):
     return render(request, "hospitals/directory_import.html", {"form": form, "stats": stats})
 
 
+
+
+# --------------------------------------------------------------------------- #
+# Duplicates and merging (administrators only)
+# --------------------------------------------------------------------------- #
+
+def _with_usage(hospitals):
+    ids = [h.pk for h in hospitals]
+    usage = {h["pk"]: h for h in Hospital.objects.filter(pk__in=ids).values("pk").annotate(
+        n_cases=Count("cases", distinct=True), n_contacts=Count("contact_links", distinct=True),
+        n_surgeons=Count("surgeon_links", distinct=True))}
+    for h in hospitals:
+        u = usage.get(h.pk, {})
+        h.n_cases, h.n_contacts, h.n_surgeons = u.get("n_cases", 0), u.get("n_contacts", 0), u.get("n_surgeons", 0)
+    return hospitals
+
+
+@admin_required
+def duplicates(request):
+    groups = duplicate_groups()
+    for group in groups:
+        _with_usage(group)
+        # Suggest keeping the official entry, then one added by an admin, then the fuller name
+        # (cases always move to the kept hospital, so their number does not matter).
+        keep = max(group, key=lambda h: (h.source in ("directory", "starter"), h.source == "admin", len(h.name), -h.pk))
+        for h in group:
+            h.suggest_keep = h.pk == keep.pk
+    prefill = Hospital.objects.filter(pk=request.GET.get("merge") or 0).first() if str(request.GET.get("merge", "")).isdigit() else None
+    return render(request, "hospitals/duplicates.html", {
+        "groups": groups, "prefill": prefill,
+        "history": HospitalMerge.objects.select_related("kept", "merged", "merged_by", "undone_by")[:30],
+    })
+
+
+@admin_required
+@require_POST
+def merge(request):
+    keep = Hospital.objects.filter(pk=request.POST.get("keep") or 0).first()
+    merge_ids = [int(x) for x in request.POST.getlist("merge") if x.isdigit()]
+    others = [h for h in Hospital.objects.filter(pk__in=merge_ids) if keep and h.pk != keep.pk]
+    if not keep or not others:
+        messages.error(request, "Choose the hospital to keep and at least one other hospital to merge into it.")
+        return redirect("hospitals:duplicates")
+    if not request.POST.get("confirm"):
+        for h in others:
+            h.preview = merge_preview(keep, h)
+        return render(request, "hospitals/merge_confirm.html", {"keep": _with_usage([keep])[0], "others": others})
+    done = []
+    for h in others:
+        try:
+            merge_hospitals(keep, h, user=request.user)
+            done.append(h.name)
+        except MergeError as exc:
+            messages.error(request, str(exc))
+    if done:
+        messages.success(request, f"Merged into {keep.name}: {', '.join(done)}. "
+                                  "All their cases, contacts and surgeons are now under this hospital.")
+    return redirect("hospitals:duplicates")
+
+
+@admin_required
+@require_POST
+def merge_undo(request, pk):
+    log = get_object_or_404(HospitalMerge, pk=pk)
+    try:
+        undo_merge(log, user=request.user)
+    except MergeError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f"Undone: {log.merged.name} is a separate hospital again, with its cases, "
+                                  "contacts and surgeons.")
+    return redirect("hospitals:duplicates")

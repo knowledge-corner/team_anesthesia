@@ -324,6 +324,15 @@ def parse_workbook(uploaded_file, user, default_doctor=None):
     result.columns = {k: v[1] for k, v in mapping.items()}
 
     hospitals = {_key(h.name): h for h in Hospital.objects.active()}
+    # Same hospital under another spelling: "Seatherney" = "Seatherney Hospital" = an "Other name" of a merged one.
+    from hospitals.matching import core_name, find_similar
+
+    by_core = {}
+    for h in Hospital.objects.active():
+        for n in [h.name] + [a for a in (h.aliases or "").split(",") if a.strip()]:
+            by_core.setdefault(core_name(n), set()).add(h)
+    hospitals_by_core = {k: next(iter(v)) for k, v in by_core.items() if len(v) == 1}
+    close_cache = {}
     from accounts.forms import doctor_title
 
     doctors_by_name = {}
@@ -364,11 +373,16 @@ def parse_workbook(uploaded_file, user, default_doctor=None):
         if not hospital_name:
             r.error("hospital", "Hospital is missing")
         else:
-            match = hospitals.get(_key(hospital_name))
+            match = hospitals.get(_key(hospital_name)) or hospitals_by_core.get(core_name(hospital_name))
             data["hospital_name"] = match.name if match else hospital_name
             data["hospital_id"] = match.pk if match else None
             if not match:
-                r.warnings.append(f"New hospital '{hospital_name}' will be added")
+                key = _key(hospital_name)
+                if key not in close_cache:
+                    close_cache[key] = find_similar(hospital_name, limit=1)
+                close = close_cache[key]
+                hint = f" - did you mean '{close[0].name}'? Use that exact name to avoid a duplicate" if close else ""
+                r.warnings.append(f"New hospital '{hospital_name}' will be added{hint}")
 
         # Fee
         try:
