@@ -5,7 +5,7 @@
   <a href="{% url 'hospitals:list' %}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
   <h1 class="h5 mb-0 flex-fill text-truncate">{{ hospital.name }}</h1>
   {% if can_edit %}<a href="{% url 'hospitals:edit' hospital.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>{% endif %}
-  {% if user.is_app_admin %}<a href="{% url 'hospitals:duplicates' %}?merge={{ hospital.pk }}" class="btn btn-sm btn-outline-secondary" title="Merge with another hospital"><i class="bi bi-intersect"></i> Merge</a>{% endif %}
+  {% if hospital.is_active %}<a href="{% url 'hospitals:duplicates' %}?merge={{ hospital.pk }}" class="btn btn-sm btn-outline-secondary" title="Merge with another hospital"><i class="bi bi-intersect"></i> Merge</a>{% endif %}
 </div>
 <div class="card p-3 mb-3">
   <dl class="row small mb-0">

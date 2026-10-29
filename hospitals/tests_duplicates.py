@@ -158,11 +158,11 @@ class MergeTests(TestCase):
         third.refresh_from_db()
         self.assertEqual(third.merged_into, self.keep)
 
-    def test_admin_pages_and_confirmation(self):
+    def test_merge_button_and_page_for_every_user(self):
+        self.assertEqual(self.client.get(reverse("hospitals:duplicates")).status_code, 302)  # signed out
         sign_in(self.client, self.doctor)
-        self.assertEqual(self.client.get(reverse("hospitals:duplicates")).status_code, 403)
-        self.assertEqual(self.client.post(reverse("hospitals:merge"), {"keep": self.keep.pk, "merge": self.dup.pk}).status_code, 403)
-        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("hospitals:list")), "Merge duplicate hospitals")
+        self.assertNotContains(self.client.get(reverse("hospitals:list")), "possible duplicates / merge")
         page = self.client.get(reverse("hospitals:duplicates"))
         self.assertContains(page, "Seatherney Hospital")
         confirm = self.client.post(reverse("hospitals:merge"), {"keep": self.keep.pk, "merge": [self.dup.pk, self.keep.pk]})
@@ -173,7 +173,7 @@ class MergeTests(TestCase):
         done = self.client.post(reverse("hospitals:merge"), {"keep": self.keep.pk, "merge": self.dup.pk, "confirm": "1"})
         self.assertRedirects(done, reverse("hospitals:duplicates"))
         log = HospitalMerge.objects.get()
-        self.assertEqual((log.kept, log.merged, log.merged_by), (self.keep, self.dup, self.admin))
+        self.assertEqual((log.kept, log.merged, log.merged_by), (self.keep, self.dup, self.doctor.user))
         # the old hospital page now opens the kept hospital
         self.assertRedirects(self.client.get(self.dup.get_absolute_url()), self.keep.get_absolute_url(),
                              fetch_redirect_response=False)

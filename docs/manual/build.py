@@ -324,7 +324,7 @@ topic("My hospitals", [
     "Tap <b>Hospitals</b> in the bottom bar.",
     "You see the hospitals you work with, with the amount outstanding at each.",
     "Use the search box to find <b>any</b> hospital in the list (about 90 Pune and Mumbai hospitals are included).",
-    "Tap <b>+ Add hospital</b> if one is missing.",
+    "Tap <b>+ Add hospital</b> if one is missing, or <b>Merge</b> (marked in red) if a hospital is in the list twice.",
 ], img="50-hospitals", img2="51-hospital-search", caption="My hospitals", caption2="Search all hospitals")
 topic("Hospital page", [
     "Address, type and main phone of the hospital.",
@@ -332,6 +332,17 @@ topic("Hospital page", [
     "Number of cases and outstanding amount there, and recent cases.",
     "<b>Add case here</b> and <b>Add contact here</b> buttons save typing.",
 ], img="52-hospital-detail")
+topic("Merge duplicate hospitals", [
+    "Same hospital added twice (e.g. <i>Seatherney</i> and <i>Seatherney Hospital</i>)? On <b>Hospitals</b> tap "
+    "<b>Merge</b> (top right, next to Add hospital; on a computer it says <b>Merge duplicates</b>).",
+    "<b>Possible duplicates</b> lists look-alike hospitals. For each group choose the one to <b>Keep</b>, tick the ones to "
+    "<b>Merge</b> and tap <b>Merge selected</b>.",
+    "Not listed? Use <b>Merge any two hospitals</b>: type the duplicate, then the hospital to keep.",
+    "The next page shows exactly what moves (cases, contacts, surgeons). Tap <b>Yes, merge</b>.",
+    "Cases with their payments and follow-ups, contacts and surgeons move to the kept hospital. The other spelling is "
+    "saved as an <b>Other name</b>, so searching it still finds the hospital.",
+    "Nothing is deleted. Made a mistake? <b>Merge history</b> (same page) shows who merged what - tap <b>Undo</b> to put it back.",
+], img="99-duplicates", img2="99b-merge-confirm", caption="Merge duplicates", caption2="Confirm merge")
 
 # --------------------------------------------------------------------------- contacts & surgeons
 sec("people", "10. Contacts and surgeons", "Both lists are shared by the whole practice: a contact or surgeon added by one person is available to everyone.")
@@ -458,16 +469,6 @@ topic("Hospital directory", [
     "(optional: Location, Address, Pincode, Telephone). The data.gov.in hospital file works too. "
     "Only the districts you list (Pune, Mumbai by default) are added.",
 ], img="98-directory-import")
-topic("Merge duplicate hospitals", [
-    "Same hospital added twice (e.g. <i>Seatherney</i> and <i>Seatherney Hospital</i>)? Hospital directory → "
-    "<b>Possible duplicates</b>, or <b>Merge</b> on a hospital's page.",
-    "For each group choose the hospital to <b>Keep</b>, tick the ones to <b>Merge</b>, tap <b>Merge selected</b>.",
-    "The next page shows exactly what moves (cases, contacts, surgeons). Tap <b>Yes, merge</b>.",
-    "Cases with their payments and follow-ups, contacts and surgeons move to the kept hospital. The other "
-    "spelling is saved as an <b>Other name</b>, so searching it still finds the hospital.",
-    "Nothing is deleted. Made a mistake? <b>Merge history</b> → <b>Undo</b> puts everything back.",
-], img="99-duplicates", img2="99b-merge-confirm", caption="Possible duplicates", caption2="Confirm merge",
-   note="Only the administrator can merge. Tip: run <b>payments backup</b> on the server before a large clean-up.")
 
 # --------------------------------------------------------------------------- FAQ
 sec("faq", "14. Questions and quick help")
@@ -480,7 +481,7 @@ table("Common questions", ["Question", "Answer"], [
      "Open <b>Notification settings</b>: <b>Send a test</b> must arrive, and the <b>Automatic reminders</b> box must say "
      "<b>Reminder sender is running</b>. If it says it has not run, tell your administrator."],
     ["I can't find a hospital.", "Try fewer letters or the area name, and look under <b>Did you mean?</b>. Still missing? Tap <b>Add a hospital not in the list</b>."],
-    ["The same hospital is in the list twice.", "Tell the administrator - they merge the two (all cases are kept, and it can be undone)."],
+    ["The same hospital is in the list twice.", "<b>Hospitals</b> → <b>Merge</b> - all cases are kept, and the merge can be undone."],
     ["The surgeon list is empty for a hospital.", "Use <b>New surgeon</b> once; next time they appear first for that hospital."],
     ["My bulk upload saved nothing.", "Some rows had mistakes. Fix the red cells and upload the same file again."],
     ["I see an old version of a screen.", "Close the app fully and open it again (or pull down to refresh)."],

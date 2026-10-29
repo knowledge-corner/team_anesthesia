@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Possible duplicate hospitals{% endblock %}
+{% block title %}Merge duplicate hospitals{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center gap-2 mb-3">
-  <a href="{% url 'hospitals:directory_import' %}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
-  <h1 class="h5 mb-0">Possible duplicate hospitals</h1>
+  <a href="{% url 'hospitals:list' %}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
+  <h1 class="h5 mb-0">Merge duplicate hospitals</h1>
 </div>
 <div style="max-width: 760px;">
+  <div class="section-title mt-0">Possible duplicates</div>
   <p class="small text-muted">Hospitals in the same city whose names look alike. For each group choose the one to
     <b>keep</b> and tick the ones to merge into it. Their cases, contacts and surgeons move to the kept hospital,
     their names stay searchable, and nothing is deleted - every merge can be undone below.</p>

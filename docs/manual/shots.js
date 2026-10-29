@@ -133,9 +133,12 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
   });
   // Hospitals
   await step('hosp', async () => {
-    await p.goto(B + '/hospitals/'); await shot(p, '50-hospitals');
+    await p.goto(B + '/hospitals/'); await shot(p, '50-hospitals', { hl: ['a[href="/hospitals/duplicates/"]'] });
     await p.goto(B + '/hospitals/?q=kem'); await shot(p, '51-hospital-search');
     await p.goto(B + '/hospitals/'); await p.click('.list-group a >> nth=0'); await p.waitForLoadState(); await shot(p, '52-hospital-detail', { full: true });
+    await p.goto(B + '/hospitals/duplicates/'); await shot(p, '99-duplicates', { hl: ['form[action="/hospitals/merge/"] .btn-primary'] });
+    await Promise.all([p.waitForLoadState(), p.click('form[action="/hospitals/merge/"] button.btn-primary >> nth=0')]);
+    await shot(p, '99b-merge-confirm', { hl: ['.form-actions .btn-primary'] });
   });
   // Contacts & surgeons
   await step('contacts', async () => {
@@ -173,9 +176,6 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
     await p.goto(B + '/cases/add/'); await shot(p, '96-admin-add-case', { hl: ['#id_doctor, #id_doctor_search'] });
     await p.goto(B + '/settings/'); await shot(p, '97-settings');
     await p.goto(B + '/hospitals/directory/import/'); await shot(p, '98-directory-import');
-    await p.goto(B + '/hospitals/duplicates/'); await shot(p, '99-duplicates', { hl: ['form[action="/hospitals/merge/"] .btn-primary'] });
-    await Promise.all([p.waitForLoadState(), p.click('form[action="/hospitals/merge/"] button.btn-primary >> nth=0')]);
-    await shot(p, '99b-merge-confirm', { hl: ['.form-actions .btn-primary'] });
   });
   console.log('ERRORS:\n' + errors.join('\n'));
   await browser.close();

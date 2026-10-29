@@ -185,7 +185,7 @@ def directory_import(request):
 
 
 # --------------------------------------------------------------------------- #
-# Duplicates and merging (administrators only)
+# Duplicates and merging (everyone; every merge is confirmed, logged and can be undone)
 # --------------------------------------------------------------------------- #
 
 def _with_usage(hospitals):
@@ -199,7 +199,7 @@ def _with_usage(hospitals):
     return hospitals
 
 
-@admin_required
+@login_required
 def duplicates(request):
     groups = duplicate_groups()
     for group in groups:
@@ -216,7 +216,7 @@ def duplicates(request):
     })
 
 
-@admin_required
+@login_required
 @require_POST
 def merge(request):
     keep = Hospital.objects.filter(pk=request.POST.get("keep") or 0).first()
@@ -242,7 +242,7 @@ def merge(request):
     return redirect("hospitals:duplicates")
 
 
-@admin_required
+@login_required
 @require_POST
 def merge_undo(request, pk):
     log = get_object_or_404(HospitalMerge, pk=pk)
