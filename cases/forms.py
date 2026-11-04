@@ -63,8 +63,13 @@ class CaseForm(StyledModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        self.fields["fee"].required = True
+        # Often the amount is only known when the hospital pays: leave it empty (= 0, "to be decided")
+        # and enter it on Record payment.
+        self.fields["fee"].required = False
         self.fields["fee"].label = "Fee (₹)"
+        self.fields["fee"].help_text = "Not decided yet? Leave it empty - enter it when the payment is received."
+        if not self.is_bound and not self.initial.get("fee"):
+            self.initial["fee"] = None  # show an empty box, not "0"
 
         # Hospital: type-to-search against the whole directory (server-side).
         hospital_field = self.fields["hospital"]
@@ -111,14 +116,21 @@ class CaseForm(StyledModelForm):
             for name in ("paid_now", "paid_amount", "paid_mode"):
                 self.fields.pop(name)
 
+    def clean_fee(self):
+        fee = self.cleaned_data.get("fee")
+        return Decimal("0") if fee is None else fee
+
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("paid_now"):
-            amount = cleaned.get("paid_amount") or cleaned.get("fee")
             fee = cleaned.get("fee")
+            amount = cleaned.get("paid_amount") or fee
             if not amount:
                 self.add_error("paid_amount", "Enter the amount received.")
-            elif fee is not None and amount > fee:
+            elif not fee:
+                # Fee not entered: the amount received on the spot is the fee.
+                cleaned["fee"] = self.instance.fee = amount
+            elif amount > fee:
                 self.add_error("paid_amount", "Amount received cannot be more than the fee.")
             cleaned["paid_amount"] = amount
         case_date = cleaned.get("case_date")

@@ -9,7 +9,7 @@
       <div class="small text-muted"><i class="bi bi-person-badge"></i> {{ case.doctor }}</div>
     </div>
     <div class="text-end flex-shrink-0">
-      <div class="fw-semibold">{{ case.fee|inr }}</div>
+      <div class="fw-semibold">{% if case.fee_to_be_decided %}<span class="small text-muted fw-normal">Fee TBD</span>{% else %}{{ case.fee|inr }}{% endif %}</div>
       {% status_badge case %}
       {% if case.outstanding > 0 and case.total_paid > 0 %}<div class="small text-danger mt-1">Due {{ case.outstanding|inr }}</div>{% endif %}
     </div>

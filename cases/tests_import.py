@@ -159,3 +159,8 @@ class ImportFlowTests(TestCase):
         self.upload(workbook_file([[self.day, "Seatherney", 4000]]))
         self.assertEqual(Case.objects.get(fee=4000).hospital.name, "Seatherney Hospital")
         self.assertFalse(Hospital.objects.filter(name="Seatherney").exists())
+
+    def test_empty_fee_means_to_be_decided(self):
+        self.upload(workbook_file([[self.day, "Ruby Hall Clinic", ""]]))
+        case = Case.objects.with_totals().get()
+        self.assertEqual((case.fee, case.status), (0, "pending"))

@@ -13,13 +13,13 @@
   <div class="d-flex justify-content-between align-items-start">
     <div>
       <div class="text-muted small">Fee</div>
-      <div class="fs-4 fw-bold">{{ case.fee|inr }}</div>
+      <div class="fs-4 fw-bold">{% if case.fee_to_be_decided %}<span class="text-muted fs-6">To be decided</span>{% else %}{{ case.fee|inr }}{% endif %}</div>
     </div>
     {% status_badge case %}
   </div>
   <div class="row g-2 mt-1 text-center">
     <div class="col-6"><div class="bg-success-subtle rounded-3 p-2"><div class="small text-muted">Received</div><div class="fw-semibold text-success">{{ case.total_paid|inr }}</div></div></div>
-    <div class="col-6"><div class="bg-danger-subtle rounded-3 p-2"><div class="small text-muted">Outstanding</div><div class="fw-semibold text-danger">{{ case.outstanding|inr }}</div></div></div>
+    <div class="col-6"><div class="bg-danger-subtle rounded-3 p-2"><div class="small text-muted">Outstanding</div><div class="fw-semibold text-danger">{% if case.fee_to_be_decided %}<span class="text-muted small">Fee to be decided</span>{% else %}{{ case.outstanding|inr }}{% endif %}</div></div></div>
   </div>
   <dl class="row small mb-0 mt-3">
     <dt class="col-5 text-muted fw-normal">Case date</dt><dd class="col-7">{{ case.case_date|date:"d M Y" }} <span class="age-pill">{{ case.age_days }} days ago</span></dd>
@@ -39,7 +39,7 @@
   </dl>
 </div>
 
-{% if case.outstanding > 0 %}
+{% if case.open_case %}
 <div class="d-flex gap-2 mb-3">
   <a href="{% url 'payments:record_for_case' case.pk %}" class="btn btn-success btn-lg-touch flex-fill"><i class="bi bi-cash-coin"></i> Record payment</a>
   <a href="{% url 'payments:followup_add' case.pk %}" class="btn btn-outline-primary btn-lg-touch flex-fill"><i class="bi bi-telephone-outbound"></i> Log follow-up</a>

@@ -145,7 +145,7 @@ sec("addcase", "4. Adding a case", "Do this right after the case, or at the end 
 topic("Step 1 - Open Add Case", [
     "Tap the yellow <b>+ Add Case</b> button at the bottom.",
     "<b>Anaesthetist</b> shows <b>Self</b> - leave it for your own case.",
-    "Fields with a red <b>*</b> are required: <b>Hospital</b>, <b>Case date</b> and <b>Fee</b>.",
+    "Fields with a red <b>*</b> are required: <b>Hospital</b> and <b>Case date</b>. The <b>Fee</b> is optional.",
     "Many cases to enter at once? Use <b>Bulk upload</b> (top right) - see section 5.",
 ], img="20-add-case")
 topic("Adding a case for a colleague", [
@@ -170,7 +170,8 @@ topic("Hospital not in the list? Add it", [
    tip="This stops the same hospital being added twice under different spellings.")
 topic("Step 3 - Date, fee, patient and surgeon", [
     "<b>Case date</b> is today by default. Change it if the case was on another day.",
-    "Type the <b>Fee</b> in rupees (numbers only, e.g. 9000).",
+    "Type the <b>Fee</b> in rupees (numbers only, e.g. 9000). <b>Not decided yet?</b> Leave it empty - the case is "
+    "shown as <b>Fee TBD</b>, stays in your pending list with reminders, and you enter the fee when the payment comes in.",
     "Type the <b>Patient name</b> (optional).",
     "<b>Surgeon</b>: tap the box and type a few letters (e.g. <i>kul</i> finds Dr. Neha Kulkarni). "
     "Surgeons who called you to this hospital before are listed first, and the last one is picked for you.",
@@ -209,7 +210,7 @@ sec("bulk", "5. Bulk upload (many cases from Excel)")
 topic("Download the template, fill it, upload it", [
     "Open <b>Add Case</b> → tap <b>Bulk upload</b> (top right).",
     "Tap <b>Download Excel template</b> and open it in Excel or Google Sheets.",
-    "Enter one case per row. Required columns: <b>Case Date</b>, <b>Hospital</b>, <b>Fee</b>. "
+    "Enter one case per row. Required columns: <b>Case Date</b> and <b>Hospital</b> (leave <b>Fee</b> empty if not decided yet). "
     "<b>Anaesthetist</b>: leave empty for your own cases, or pick a colleague from the drop-down.",
     "Save the file, come back, tap <b>Choose File</b>, pick the file and tap <b>Upload</b>.",
     "If every row is correct, all cases are saved at once and you see a confirmation.",
@@ -224,7 +225,7 @@ table("Template columns", ["Column", "What to type", "Example"], [
     ["Case Date *", "Date of the case (DD/MM/YYYY)", "25/09/2026"],
     ["Hospital *", "Pick from the dropdown, or type a new name (it will be added)", "Ruby Hall Clinic"],
     ["Anaesthetist", "Empty = you. Or pick a colleague who has signed up (drop-down)", "Dr. Vikram Rao"],
-    ["Fee *", "Amount in rupees, numbers only", "7500"],
+    ["Fee", "Amount in rupees, numbers only. Empty = not decided yet", "7500"],
     ["Patient Name", "Patient's name", "Sunita Patil"],
     ["Surgeon", "Surgeon's name (new names are added to the practice list)", "Dr. Amit Shah"],
     ["Procedure / Case Type", "Type of case", "LSCS - spinal"],
@@ -275,6 +276,8 @@ sec("payments", "7. Recording payments")
 topic("Note a payment you received", [
     "Open the case → tap <b>Record payment</b>.",
     "The <b>Amount</b> is filled with what is still due - change it if you received less (a part payment).",
+    "<b>Case fee</b> - the total fee for the case. Fee was not decided when the case was added? Enter it here now. "
+    "Hospital paid a different amount than expected? Correct the fee here.",
     "Check the <b>Payment date</b> and choose the <b>Mode</b> (UPI, bank transfer, cheque, cash...).",
     "<b>Received by</b> - who received the money, e.g. <i>Dr. Mehta</i> or <i>Clinic reception</i> (optional). "
     "Names you used before are suggested as you type.",

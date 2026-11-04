@@ -113,7 +113,7 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
   });
   await step('pay', async () => {
     const id = caseUrl.match(/\d+/)[0];
-    await p.goto(B + '/payments/record/case/' + id + '/'); await shot(p, '44-record-payment', { hl: ['#id_received_by'] });
+    await p.goto(B + '/payments/record/case/' + id + '/'); await shot(p, '44-record-payment', { hl: ['#id_case_fee', '#id_received_by'], full: true });
     await p.goto(B + '/payments/case/' + id + '/follow-up/');
     await p.fill('#id_notes', 'Bill is with accounts, will pay next week');
     const d = new Date(); d.setDate(d.getDate() + 7); const iso = d.toISOString().slice(0, 10);

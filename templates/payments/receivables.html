@@ -52,7 +52,7 @@
           <div class="action-meta"><i class="bi bi-person-badge"></i> {{ case.doctor }}</div>
         </div>
         <div class="text-end flex-shrink-0">
-          <a href="{{ case.get_absolute_url }}" class="action-amount text-danger amount text-decoration-none">{{ case.outstanding|inr }}</a>
+          <a href="{{ case.get_absolute_url }}" class="action-amount text-danger amount text-decoration-none">{% if case.fee_to_be_decided %}<span class="small text-muted fw-normal">Fee TBD</span>{% else %}{{ case.outstanding|inr }}{% endif %}</a>
           {% if case.total_paid > 0 %}<div class="action-meta">of {{ case.fee|inr }}</div>{% endif %}
         </div>
       </div>

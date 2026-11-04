@@ -52,7 +52,7 @@ def reminder_state(case, today=None):
         last_followup = latest.followup_date if latest else None
 
     due = (
-        case.balance > 0
+        case.open_case
         and last_trigger is not None
         and custom is None
         and (last_followup is None or last_followup < last_trigger)
@@ -67,7 +67,7 @@ def receivables_for(user, today=None):
         Case.objects.for_user(user)
         .with_totals(today)
         .with_last_followup()
-        .filter(outstanding__gt=0)
+        .filter(is_open=True)
         .select_related("hospital", "doctor", "surgeon")
         .order_by("case_date", "id")
     )

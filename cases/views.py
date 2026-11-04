@@ -53,7 +53,7 @@ def case_list(request):
     if status in PaymentStatus.LABELS:
         qs = qs.filter(status=status)
     elif status == "unpaid":
-        qs = qs.filter(outstanding__gt=0)
+        qs = qs.filter(is_open=True)
     if hospital.isdigit():
         qs = qs.filter(hospital_id=hospital)
     surgeon = request.GET.get("surgeon", "")
@@ -111,7 +111,8 @@ def case_add(request):
                     created_by=user,
                 )
                 payment.save()
-        messages.success(request, f"Case saved: {case.hospital} - {case.fee:.0f}")
+        messages.success(request, f"Case saved: {case.hospital} - "
+                                  + (f"{case.fee:.0f}" if case.fee > 0 else "fee to be decided (enter it on Record payment)"))
         if auto_due:
             messages.info(request, f"Expected payment date set to {case.due_date:%d %b %Y} "
                                    f"({AppSettings.load().default_payment_terms_days} days). Edit the case to change it.")
@@ -154,7 +155,7 @@ def case_detail(request, pk):
         "case": case,
         "payments": case.payments.all(),
         "followups": case.followups.select_related("contact"),
-        "reminder": reminder_state(case) if case.outstanding > 0 else None,
+        "reminder": reminder_state(case) if case.open_case else None,
     }
     return render(request, "cases/case_detail.html", context)
 

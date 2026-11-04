@@ -27,12 +27,13 @@
       <div class="col-6">{% include "partials/field.html" with field=form.case_date %}</div>
       <div class="col-6">
         <div class="mb-3">
-          <label class="form-label" for="id_fee">Fee (₹) <span class="text-danger">*</span></label>
+          <label class="form-label" for="id_fee">Fee (₹) <span class="small text-muted fw-normal">optional</span></label>
           {{ form.fee }}
           {% for error in form.fee.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
         </div>
       </div>
     </div>
+    <div class="form-text mt-n2 mb-3">Fee not decided yet? Leave it empty - enter it on <b>Record payment</b> when the payment comes in.</div>
     {% include "partials/field.html" with field=form.patient_name %}
 
     <div class="mb-3">

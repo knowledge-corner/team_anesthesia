@@ -32,9 +32,9 @@
           <td class="small">{{ c.doctor }}</td>
           <td>{{ c.hospital.name }}</td>
           <td class="small">{{ c.procedure_type }}{% if c.patient_reference %}<div class="text-muted">{{ c.patient_reference }}</div>{% endif %}</td>
-          <td class="text-end amount">{{ c.fee|inr }}</td>
+          <td class="text-end amount">{% if c.fee_to_be_decided %}<span class="text-muted">TBD</span>{% else %}{{ c.fee|inr }}{% endif %}</td>
           <td class="text-end amount">{{ c.total_paid|inr }}</td>
-          <td class="text-end amount {% if c.outstanding > 0 %}text-danger{% endif %}">{{ c.outstanding|inr }}</td>
+          <td class="text-end amount {% if c.outstanding > 0 %}text-danger{% endif %}">{% if c.fee_to_be_decided %}<span class="text-muted">TBD</span>{% else %}{{ c.outstanding|inr }}{% endif %}</td>
           <td>{% status_badge c %}</td>
         </tr>
         {% empty %}<tr><td colspan="9" class="text-center text-muted p-4">No cases match these filters.</td></tr>{% endfor %}

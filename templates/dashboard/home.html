@@ -108,7 +108,7 @@
           <div class="action-meta">{{ case.case_date|date:"d M Y" }}{% if case.patient_name %} · {{ case.patient_name }}{% endif %}{% if case.surgeon %} · {{ case.surgeon }}{% endif %}{% if case.patient_reference %} · {{ case.patient_reference }}{% endif %} · {{ case.doctor }}</div>
           {% if case.call %}<div class="action-meta"><i class="bi bi-person"></i> {{ case.call.label }}</div>{% endif %}
         </div>
-        <a href="{{ case.get_absolute_url }}" class="action-amount text-danger amount text-decoration-none">{{ case.outstanding|inr }}</a>
+        <a href="{{ case.get_absolute_url }}" class="action-amount text-danger amount text-decoration-none">{% if case.fee_to_be_decided %}<span class="small text-muted fw-normal">Fee TBD</span>{% else %}{{ case.outstanding|inr }}{% endif %}</a>
       </div>
       <div class="d-flex gap-1 flex-wrap mt-1">
         {% status_badge case %}

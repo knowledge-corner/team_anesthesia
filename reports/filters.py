@@ -148,7 +148,7 @@ def parse_filters(request, default_period="this_month"):
 def apply_case_status(qs, status):
     """qs must be annotated with CaseQuerySet.with_totals()."""
     if status == "unpaid":
-        return qs.filter(outstanding__gt=0)
+        return qs.filter(is_open=True)
     if status:
         return qs.filter(status=status)
     return qs

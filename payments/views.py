@@ -50,8 +50,10 @@ def record_payment(request, case_pk=None):
         if fixed_case is not None:
             payment.case = fixed_case
         payment.created_by = request.user
+        fee_changed = form.save_fee(payment.case)
         payment.save()
-        messages.success(request, f"Payment of {payment.amount:,.0f} recorded.")
+        messages.success(request, f"Payment of {payment.amount:,.0f} recorded."
+                                  + (f" Case fee set to {payment.case.fee:,.0f}." if fee_changed else ""))
         return redirect(_next_url(request, reverse("cases:detail", args=[payment.case_id])))
     return render(request, "payments/payment_form.html", {
         "form": form, "case": fixed_case, "unpaid_count": unpaid.count(), "next": _next_url(request, ""),
@@ -75,6 +77,7 @@ def edit_payment(request, pk):
             messages.success(request, "Payment deleted.")
             return redirect(case)
         if form.is_valid():
+            form.save_fee(payment.case)
             form.save()
             messages.success(request, "Payment updated.")
             return redirect(payment.case)

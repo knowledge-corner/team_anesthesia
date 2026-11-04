@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Case as DbCase
-from django.db.models import DecimalField, ExpressionWrapper, F, OuterRef, Subquery, Sum, Value, When
+from django.db.models import BooleanField, DecimalField, ExpressionWrapper, F, OuterRef, Q, Subquery, Sum, Value, When
 from django.db.models.functions import Coalesce
 from django.urls import reverse
 from django.utils import timezone
@@ -31,8 +31,14 @@ class PaymentStatus:
 
 
 def compute_status(fee, total_paid, due_date, today=None):
-    """Single source of truth for status (mirrored by CaseQuerySet.with_totals)."""
+    """Single source of truth for status (mirrored by CaseQuerySet.with_totals).
+
+    A fee of 0 with nothing received means "fee to be decided" (entered when the payment
+    comes in): the case stays open - pending, or overdue after its expected payment date.
+    """
     today = today or timezone.localdate()
+    if fee <= 0 and total_paid <= 0:
+        return PaymentStatus.OVERDUE if due_date and due_date < today else PaymentStatus.PENDING
     if fee - total_paid <= 0:
         return PaymentStatus.PAID
     if due_date and due_date < today:
@@ -67,7 +73,12 @@ class CaseQuerySet(models.QuerySet):
         ).annotate(
             outstanding=ExpressionWrapper(F("fee") - F("total_paid"), output_field=MONEY),
         ).annotate(
+            # Still to be collected: money outstanding, or the fee is not decided yet.
+            is_open=ExpressionWrapper(Q(outstanding__gt=0) | Q(fee__lte=0, total_paid__lte=0), output_field=BooleanField()),
+        ).annotate(
             status=DbCase(
+                When(fee__lte=0, total_paid__lte=0, due_date__lt=today, then=Value(PaymentStatus.OVERDUE)),
+                When(fee__lte=0, total_paid__lte=0, then=Value(PaymentStatus.PENDING)),
                 When(outstanding__lte=0, then=Value(PaymentStatus.PAID)),
                 When(due_date__lt=today, then=Value(PaymentStatus.OVERDUE)),
                 When(total_paid__gt=0, then=Value(PaymentStatus.PARTIAL)),
@@ -87,7 +98,8 @@ class CaseQuerySet(models.QuerySet):
         return self.annotate(last_followup_date=Subquery(last_sq, output_field=models.DateField()))
 
     def outstanding(self):
-        return self.with_totals().filter(outstanding__gt=0)
+        """Cases still to be collected (including cases whose fee is not decided yet)."""
+        return self.with_totals().filter(is_open=True)
 
 
 class Case(ImportableModel):
@@ -106,7 +118,8 @@ class Case(ImportableModel):
     contact = models.ForeignKey("contacts.Contact", null=True, blank=True, on_delete=models.SET_NULL,
                                 related_name="cases", help_text="Person to contact about this payment.")
     procedure_type = models.CharField("Procedure / case type", max_length=150, blank=True)
-    fee = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+                              help_text="0 = not decided yet; enter it when the payment comes in.")
     due_date = models.DateField(
         "Expected payment date", null=True, blank=True, db_index=True,
         help_text="If left empty, it is set to the default payment period (30 days) after the case date.",
@@ -147,6 +160,17 @@ class Case(ImportableModel):
         if hasattr(self, "outstanding"):
             return self.outstanding
         return self.fee - self.amount_paid
+
+    @property
+    def fee_to_be_decided(self):
+        return self.fee <= 0 and self.amount_paid <= 0
+
+    @property
+    def open_case(self):
+        """Still to be collected (works with or without with_totals())."""
+        if hasattr(self, "is_open"):
+            return bool(self.is_open)
+        return self.balance > 0 or self.fee_to_be_decided
 
     @property
     def payment_status(self):

@@ -77,13 +77,39 @@ class CaseViewTests(TestCase):
         self.assertIsNone(response.context["form"].initial.get("fee"))
         self.assertEqual(str(response.context["form"].initial.get("hospital")), str(self.hospital.pk))
 
-    def test_fee_is_required(self):
-        response = self.client.post(reverse("cases:add"), {
+    def test_fee_is_optional_and_case_stays_open(self):
+        form = self.client.get(reverse("cases:add")).context["form"]
+        self.assertFalse(form.fields["fee"].required)
+        self.assertIsNone(form.initial.get("fee"))  # empty box, not "0"
+        self.client.post(reverse("cases:add"), {
             "hospital": self.hospital.pk, "case_date": timezone.localdate().isoformat(), "fee": "",
         })
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("fee", response.context["form"].errors)
-        self.assertFalse(Case.objects.exists())
+        case = Case.objects.with_totals().get()
+        self.assertEqual(case.fee, 0)
+        self.assertTrue(case.is_open)
+        self.assertEqual(case.status, PaymentStatus.PENDING)  # not "Paid"
+        self.assertTrue(case.fee_to_be_decided)
+        self.assertEqual(Case.objects.outstanding().count(), 1)  # still listed for follow-up
+        self.assertEqual(self.client.get(reverse("cases:list") + "?status=unpaid").context["page"].paginator.count, 1)
+        self.assertContains(self.client.get(case.get_absolute_url()), "To be decided")
+
+    def test_fee_to_be_decided_becomes_overdue_and_reminds(self):
+        from payments.services import receivables_for
+
+        case = make_case(self.doctor, self.hospital, days_ago=40, fee=0)
+        self.assertEqual(Case.objects.with_totals().get(pk=case.pk).status, PaymentStatus.OVERDUE)
+        self.assertEqual(compute_status(Decimal("0"), Decimal("0"), case.due_date), PaymentStatus.OVERDUE)
+        self.assertEqual(compute_status(Decimal("0"), Decimal("0"), None), PaymentStatus.PENDING)
+        listed = [c for c in receivables_for(self.doctor.user) if c.pk == case.pk]
+        self.assertTrue(listed and listed[0].reminder.due)
+
+    def test_paid_on_the_spot_without_fee_uses_amount(self):
+        self.client.post(reverse("cases:add"), {
+            "hospital": self.hospital.pk, "case_date": timezone.localdate().isoformat(), "fee": "",
+            "paid_now": "on", "paid_amount": "4500", "paid_mode": "cash",
+        })
+        case = Case.objects.get()
+        self.assertEqual((case.fee, case.payment_status), (Decimal("4500"), PaymentStatus.PAID))
 
     def test_add_case_with_custom_fee_and_payment(self):
         response = self.client.post(reverse("cases:add"), {

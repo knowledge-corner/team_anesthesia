@@ -91,7 +91,7 @@ def hospital_detail(request, pk):
     if hospital.merged_into_id:
         return redirect(hospital.merged_into)
     cases = scoped_cases(request).filter(hospital=hospital).with_totals().select_related("doctor", "surgeon")
-    open_cases = [c for c in cases if c.outstanding > 0]
+    open_cases = [c for c in cases if c.open_case]
     links = hospital.contact_links.select_related("contact").order_by("end_date", "-is_primary")
     if not request.user.is_app_admin:
         links = links.filter(contact__doctor__user=request.user)

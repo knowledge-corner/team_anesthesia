@@ -43,6 +43,39 @@ class PaymentViewTests(TestCase):
         self.assertRedirects(response, self.case.get_absolute_url())
         self.assertEqual(Case.objects.get(pk=self.case.pk).payment_status, "paid")
 
+    def test_fee_decided_at_payment_time(self):
+        open_case = make_case(self.doctor, self.hospital, days_ago=3, fee=0)
+        url = reverse("payments:record_for_case", args=[open_case.pk])
+        page = self.client.get(url)
+        self.assertContains(page, "Fee not decided yet")
+        self.assertIn("case_fee", page.context["form"].fields)
+        today = timezone.localdate().isoformat()
+        # no fee entered while it is still undecided -> asked for it, nothing saved
+        response = self.client.post(url, {"amount": "3000", "payment_date": today, "mode": "upi"})
+        self.assertIn("case_fee", response.context["form"].errors)
+        self.assertFalse(Payment.objects.exists())
+        # fee entered with the payment -> case fee updated, part paid
+        self.client.post(url, {"amount": "3000", "case_fee": "8000", "payment_date": today, "mode": "upi"})
+        case = Case.objects.with_totals().get(pk=open_case.pk)
+        self.assertEqual((case.fee, case.total_paid, case.status), (Decimal("8000"), Decimal("3000"), "partial"))
+
+    def test_fee_can_be_corrected_when_paid(self):
+        url = reverse("payments:record_for_case", args=[self.case.pk])
+        self.assertEqual(self.client.get(url).context["form"].initial["case_fee"], Decimal("5000"))
+        today = timezone.localdate().isoformat()
+        # hospital paid 6000 instead of the 5000 entered: correct the fee with the payment
+        self.client.post(url, {"amount": "6000", "case_fee": "6000", "payment_date": today, "mode": "bank"})
+        case = Case.objects.with_totals().get(pk=self.case.pk)
+        self.assertEqual((case.fee, case.status), (Decimal("6000"), "paid"))
+        # a fee below what was already received is refused
+        other = make_case(self.doctor, self.hospital, fee=5000)
+        Payment.objects.create(case=other, amount=Decimal("4000"))
+        response = self.client.post(reverse("payments:record_for_case", args=[other.pk]),
+                                    {"amount": "500", "case_fee": "4200", "payment_date": today, "mode": "bank"})
+        self.assertIn("case_fee", response.context["form"].errors)
+        other.refresh_from_db()
+        self.assertEqual(other.fee, Decimal("5000"))
+
     def test_edit_payment_allows_same_amount(self):
         payment = Payment.objects.create(case=self.case, amount=Decimal("5000"))
         response = self.client.post(reverse("payments:edit", args=[payment.pk]), {

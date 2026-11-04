@@ -42,7 +42,7 @@ COLUMNS = [
      ["hospital", "hospital name", "hospital / clinic", "clinic", "nursing home", "centre", "center"]),
     ("doctor", "Anaesthetist", False, "Anaesthetist's name as registered in the app, e.g. Dr. Anjali Mehta (empty = the one chosen on the upload page)",
      ["anaesthetist", "anesthetist", "anaesthetist name", "doctor", "doctor name", "doctor username", "username"]),
-    ("fee", "Fee", True, "Amount billed for the case, e.g. 6000",
+    ("fee", "Fee", False, "Amount billed for the case, e.g. 6000. Leave empty if not decided yet",
      ["fee", "fees", "amount", "charges", "bill amount", "billed", "billed amount", "professional fee"]),
     ("patient_name", "Patient Name", False, "e.g. Sunita Patil",
      ["patient name", "name of patient", "patient"]),
@@ -155,7 +155,7 @@ def build_template(include_doctor_column=True):
     info["A1"].font = Font(bold=True, size=14, color="312E81")
     info.append([])
     info.append(["1.", "Enter one completed case per row in the 'Cases' sheet (row 2 onwards)."])
-    info.append(["2.", "Columns marked * (orange) are required: Case Date, Hospital, Fee."])
+    info.append(["2.", "Columns marked * (orange) are required: Case Date, Hospital. Fee can be left empty if it is not decided yet."])
     info.append(["3.", "Pick the hospital from the dropdown. A name that is not in the list is added as a new hospital."])
     info.append(["4.", "If the case is already paid (fully or partly), fill Amount Received, Payment Date and Mode."])
     info.append(["5.", "Save the file and upload it (Add Case > Bulk upload). If every row is correct it is saved at once;"])
@@ -297,7 +297,7 @@ def _find_header(ws):
             name = ALIAS_TO_FIELD.get(_key(str(cell or "").replace("*", "")))
             if name and name not in mapping:
                 mapping[name] = (col_idx, str(cell).replace("*", "").strip())
-        if {"case_date", "hospital", "fee"} <= set(mapping):
+        if {"case_date", "hospital"} <= set(mapping):
             return row_idx, mapping
     return None, {}
 
@@ -317,7 +317,7 @@ def parse_workbook(uploaded_file, user, default_doctor=None):
     if not header_row:
         result.fatal = (
             "Could not find the column headings. The sheet needs at least these columns: "
-            "Case Date, Hospital and Fee (download the template to see the layout)."
+            "Case Date and Hospital (download the template to see the layout)."
         )
         return result
     result.header_row = header_row
@@ -387,10 +387,7 @@ def parse_workbook(uploaded_file, user, default_doctor=None):
         # Fee
         try:
             fee = parse_amount(raw.get("fee"))
-            if fee is None:
-                r.error("fee", "Fee is missing")
-            else:
-                data["fee"] = str(fee)
+            data["fee"] = str(fee if fee is not None else Decimal("0"))  # empty = to be decided
         except ValueError as exc:
             r.error("fee", f"Fee: {exc}")
             fee = None
@@ -410,7 +407,9 @@ def parse_workbook(uploaded_file, user, default_doctor=None):
             r.error("amount_received", f"Amount received: {exc}")
             received = None
         if received:
-            if fee is not None and received > fee:
+            if not fee and not r.errors:
+                data["fee"] = str(received)  # fee not given: the amount received is the fee
+            elif fee is not None and received > fee:
                 r.error("amount_received", "Amount received is more than the fee")
             data["amount_received"] = str(received)
             try:
