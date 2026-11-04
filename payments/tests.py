@@ -28,13 +28,14 @@ class PaymentViewTests(TestCase):
         self.assertEqual(case.outstanding, Decimal("1500"))
         self.assertEqual(case.status, "partial")
 
-    def test_overpayment_is_rejected(self):
+    def test_more_than_the_fee_raises_the_fee(self):
         response = self.client.post(
             reverse("payments:record_for_case", args=[self.case.pk]),
             {"amount": "6000", "payment_date": timezone.localdate().isoformat(), "mode": "cash"},
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(Payment.objects.exists())
+        self.assertEqual(response.status_code, 302)  # saved, not blocked
+        case = Case.objects.with_totals().get(pk=self.case.pk)
+        self.assertEqual((case.fee, case.total_paid, case.status), (Decimal("6000"), Decimal("6000"), "paid"))
 
     def test_record_payment_from_unpaid_list(self):
         response = self.client.post(reverse("payments:record"), {
@@ -47,34 +48,42 @@ class PaymentViewTests(TestCase):
         open_case = make_case(self.doctor, self.hospital, days_ago=3, fee=0)
         url = reverse("payments:record_for_case", args=[open_case.pk])
         page = self.client.get(url)
-        self.assertContains(page, "Fee not decided yet")
-        self.assertIn("case_fee", page.context["form"].fields)
+        self.assertContains(page, "the amount you enter becomes the fee")
+        self.assertFalse(page.context["form"].fields["case_fee"].required)
         today = timezone.localdate().isoformat()
-        # no fee entered while it is still undecided -> asked for it, nothing saved
-        response = self.client.post(url, {"amount": "3000", "payment_date": today, "mode": "upi"})
-        self.assertIn("case_fee", response.context["form"].errors)
-        self.assertFalse(Payment.objects.exists())
-        # fee entered with the payment -> case fee updated, part paid
-        self.client.post(url, {"amount": "3000", "case_fee": "8000", "payment_date": today, "mode": "upi"})
+        # only the amount -> saved straight away, the amount is the fee
+        response = self.client.post(url, {"amount": "7000", "payment_date": today, "mode": "upi"})
+        self.assertEqual(response.status_code, 302)
         case = Case.objects.with_totals().get(pk=open_case.pk)
-        self.assertEqual((case.fee, case.total_paid, case.status), (Decimal("8000"), Decimal("3000"), "partial"))
+        self.assertEqual((case.fee, case.status), (Decimal("7000"), "paid"))
+        # a total can still be given when more is to come
+        other = make_case(self.doctor, self.hospital, days_ago=3, fee=0)
+        self.client.post(reverse("payments:record_for_case", args=[other.pk]),
+                         {"amount": "3000", "case_fee": "8000", "payment_date": today, "mode": "upi"})
+        other = Case.objects.with_totals().get(pk=other.pk)
+        self.assertEqual((other.fee, other.status), (Decimal("8000"), "partial"))
 
-    def test_fee_can_be_corrected_when_paid(self):
+    def test_fee_typed_at_payment_is_final_even_if_lower(self):
         url = reverse("payments:record_for_case", args=[self.case.pk])
-        self.assertEqual(self.client.get(url).context["form"].initial["case_fee"], Decimal("5000"))
+        self.assertEqual(self.client.get(url).context["form"].initial["case_fee"], 5000)
         today = timezone.localdate().isoformat()
-        # hospital paid 6000 instead of the 5000 entered: correct the fee with the payment
-        self.client.post(url, {"amount": "6000", "case_fee": "6000", "payment_date": today, "mode": "bank"})
+        Payment.objects.create(case=self.case, amount=Decimal("4000"))
+        response = self.client.post(url, {"amount": "500", "case_fee": "4200", "payment_date": today, "mode": "bank"})
+        self.assertEqual(response.status_code, 302)  # no "cannot be less than received" check
         case = Case.objects.with_totals().get(pk=self.case.pk)
-        self.assertEqual((case.fee, case.status), (Decimal("6000"), "paid"))
-        # a fee below what was already received is refused
-        other = make_case(self.doctor, self.hospital, fee=5000)
-        Payment.objects.create(case=other, amount=Decimal("4000"))
-        response = self.client.post(reverse("payments:record_for_case", args=[other.pk]),
-                                    {"amount": "500", "case_fee": "4200", "payment_date": today, "mode": "bank"})
-        self.assertIn("case_fee", response.context["form"].errors)
-        other.refresh_from_db()
-        self.assertEqual(other.fee, Decimal("5000"))
+        self.assertEqual((case.fee, case.status), (Decimal("4200"), "paid"))
+
+    def test_prefilled_fee_left_as_is_still_rises_with_overpayment(self):
+        url = reverse("payments:record_for_case", args=[self.case.pk])
+        self.assertEqual(str(self.client.get(url).context["form"].initial["case_fee"]), "5000")
+        self.client.post(url, {"amount": "6500", "case_fee": "5000", "payment_date": timezone.localdate().isoformat(),
+                               "mode": "upi"})
+        self.assertEqual(Case.objects.get(pk=self.case.pk).fee, Decimal("6500"))
+
+    def test_partial_payment_keeps_the_fee(self):
+        self.client.post(reverse("payments:record_for_case", args=[self.case.pk]),
+                         {"amount": "1000", "payment_date": timezone.localdate().isoformat(), "mode": "upi"})
+        self.assertEqual(Case.objects.get(pk=self.case.pk).fee, Decimal("5000"))
 
     def test_edit_payment_allows_same_amount(self):
         payment = Payment.objects.create(case=self.case, amount=Decimal("5000"))

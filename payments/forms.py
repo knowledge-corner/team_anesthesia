@@ -36,11 +36,16 @@ class PaymentForm(StyledModelForm):
         super().__init__(*args, **kwargs)
         self.fixed_case = fixed_case
         if fixed_case is not None and fixed_case.fee > 0 and not self.is_bound:
-            self.initial.setdefault("case_fee", fixed_case.fee)
+            fee = fixed_case.fee
+            self.initial.setdefault("case_fee", fee.quantize(1) if fee == fee.to_integral() else fee)
+            self.fields["case_fee"].help_text = ("Total fee for this case. Leave it as it is: if more is received, "
+                                                 "the fee goes up automatically.")
         if fixed_case is not None and fixed_case.fee <= 0:
-            self.fields["case_fee"].help_text = "The fee was not decided when the case was added - enter the total fee now."
+            self.fields["case_fee"].help_text = ("Optional. Leave empty and the amount received becomes the fee; "
+                                                 "enter a total only if more is still to come.")
         if fixed_case is None:
-            self.fields["case_fee"].help_text = "Leave empty to keep the case's fee. Enter it if the fee was not decided yet or has changed."
+            self.fields["case_fee"].help_text = ("Optional. Leave empty to keep the case's fee (if no fee was set, "
+                                                 "the amount received becomes the fee).")
         # Show the fee box right after the amount.
         order = list(self.fields)
         order.remove("case_fee")
@@ -70,25 +75,26 @@ class PaymentForm(StyledModelForm):
         cleaned = super().clean()
         case = self._case()
         amount = cleaned.get("amount")
-        new_fee = cleaned.get("case_fee")
+        # Never block a payment: what was received decides the fee (see save_fee).
+        self.total_received = None
         if case is not None and amount:
-            paid_elsewhere = sum(
-                p.amount for p in case.payments.all() if p.pk != self.instance.pk
-            )
-            fee = new_fee if new_fee else case.fee
-            if fee <= 0:
-                self.add_error("case_fee", "Enter the total fee for this case (it was not decided when the case was added).")
-            elif amount + paid_elsewhere > fee:
-                if new_fee:
-                    self.add_error("case_fee", f"Fee cannot be less than the total received ({amount + paid_elsewhere:,.2f}).")
-                else:
-                    self.add_error("amount", f"Only {fee - paid_elsewhere:,.2f} is outstanding on this case. "
-                                             "If the fee changed, enter the new fee below.")
+            paid_elsewhere = sum(p.amount for p in case.payments.all() if p.pk != self.instance.pk)
+            self.total_received = paid_elsewhere + amount
         return cleaned
 
     def save_fee(self, case):
-        """Store a new or corrected fee on the case. Returns True if it changed."""
+        """Set the case's final fee. Returns True if it changed.
+
+        * a fee typed in "Case fee" is used as it is;
+        * otherwise, if no fee was set or more was received than the fee,
+          the total received becomes the fee.
+        """
         new_fee = self.cleaned_data.get("case_fee")
+        if new_fee == case.fee:
+            new_fee = None  # the pre-filled fee left as it is
+        total = getattr(self, "total_received", None)
+        if not new_fee and total is not None and (case.fee <= 0 or total > case.fee):
+            new_fee = total
         if new_fee and new_fee != case.fee:
             case.fee = new_fee
             case.save(update_fields=["fee", "updated_at"])

@@ -127,11 +127,9 @@ class CaseForm(StyledModelForm):
             amount = cleaned.get("paid_amount") or fee
             if not amount:
                 self.add_error("paid_amount", "Enter the amount received.")
-            elif not fee:
-                # Fee not entered: the amount received on the spot is the fee.
+            elif not fee or amount > fee:
+                # No fee entered, or more was received: the amount received is the fee.
                 cleaned["fee"] = self.instance.fee = amount
-            elif amount > fee:
-                self.add_error("paid_amount", "Amount received cannot be more than the fee.")
             cleaned["paid_amount"] = amount
         case_date = cleaned.get("case_date")
         if case_date and case_date > timezone.localdate():

@@ -103,6 +103,13 @@ class CaseViewTests(TestCase):
         listed = [c for c in receivables_for(self.doctor.user) if c.pk == case.pk]
         self.assertTrue(listed and listed[0].reminder.due)
 
+    def test_paid_on_the_spot_more_than_fee_raises_fee(self):
+        self.client.post(reverse("cases:add"), {
+            "hospital": self.hospital.pk, "case_date": timezone.localdate().isoformat(), "fee": "4000",
+            "paid_now": "on", "paid_amount": "4500", "paid_mode": "cash",
+        })
+        self.assertEqual(Case.objects.get().fee, Decimal("4500"))
+
     def test_paid_on_the_spot_without_fee_uses_amount(self):
         self.client.post(reverse("cases:add"), {
             "hospital": self.hospital.pk, "case_date": timezone.localdate().isoformat(), "fee": "",

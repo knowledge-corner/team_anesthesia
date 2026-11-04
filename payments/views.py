@@ -77,9 +77,10 @@ def edit_payment(request, pk):
             messages.success(request, "Payment deleted.")
             return redirect(case)
         if form.is_valid():
-            form.save_fee(payment.case)
+            fee_changed = form.save_fee(payment.case)
             form.save()
-            messages.success(request, "Payment updated.")
+            messages.success(request, "Payment updated."
+                                      + (f" Case fee set to {payment.case.fee:,.0f}." if fee_changed else ""))
             return redirect(payment.case)
     return render(request, "payments/payment_form.html", {
         "form": form, "case": payment.case, "payment": payment,

@@ -10,7 +10,7 @@
 <div class="card p-3 mb-3" style="max-width: 640px;">
   <div class="fw-semibold">{{ case.hospital.name }}</div>
   <div class="small text-muted">{{ case.case_date|date:"d M Y" }}{% if case.procedure_type %} · {{ case.procedure_type }}{% endif %}{% if case.patient_reference %} · {{ case.patient_reference }}{% endif %}</div>
-  <div class="small mt-1">{% if case.fee_to_be_decided %}<span class="text-danger fw-semibold">Fee not decided yet</span> - enter it below{% else %}Fee {{ case.fee|inr }} · Received {{ case.amount_paid|inr }} · <span class="text-danger fw-semibold">Due {{ case.balance|inr }}</span>{% endif %}</div>
+  <div class="small mt-1">{% if case.fee_to_be_decided %}<span class="text-danger fw-semibold">Fee not decided yet</span> - the amount you enter becomes the fee{% else %}Fee {{ case.fee|inr }} · Received {{ case.amount_paid|inr }} · <span class="text-danger fw-semibold">Due {{ case.balance|inr }}</span>{% endif %}</div>
 </div>
 {% elif not unpaid_count %}
 <div class="alert alert-success">All cases are fully paid. <a href="{% url 'dashboard:home' %}">Back to dashboard</a></div>

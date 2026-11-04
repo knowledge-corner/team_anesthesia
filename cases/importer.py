@@ -407,10 +407,8 @@ def parse_workbook(uploaded_file, user, default_doctor=None):
             r.error("amount_received", f"Amount received: {exc}")
             received = None
         if received:
-            if not fee and not r.errors:
-                data["fee"] = str(received)  # fee not given: the amount received is the fee
-            elif fee is not None and received > fee:
-                r.error("amount_received", "Amount received is more than the fee")
+            if not r.errors and (not fee or received > fee):
+                data["fee"] = str(received)  # no fee, or more received: the amount received is the fee
             data["amount_received"] = str(received)
             try:
                 pay_date = parse_date(raw.get("payment_date")) or (case_date if data.get("case_date") else None)

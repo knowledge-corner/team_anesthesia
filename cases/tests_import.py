@@ -94,12 +94,12 @@ class ImportFlowTests(TestCase):
         f = workbook_file([
             [self.day, "Ruby Hall Clinic", 7500, "", "IP 1"],
             [self.day, "Ruby Hall Clinic", "abc", "", ""],                       # bad fee
-            [self.day, "Ruby Hall Clinic", 5000, "", "IP 9", "", 6000, "", ""],  # overpaid
+            [self.day, "Ruby Hall Clinic", 5000, "", "IP 9", "", 6000, "", ""],  # paid more than the fee: fine
         ])
         response = self.upload(f)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Case.objects.count(), 0)
-        self.assertEqual([r.row_no for r in response.context["error_rows"]], [3, 4])
+        self.assertEqual([r.row_no for r in response.context["error_rows"]], [3])
         self.assertEqual(response.context["error_rows"][0].error_fields, ["fee"])
         self.assertContains(response, "Nothing was saved")
         self.assertContains(response, "cell-error")
@@ -164,3 +164,9 @@ class ImportFlowTests(TestCase):
         self.upload(workbook_file([[self.day, "Ruby Hall Clinic", ""]]))
         case = Case.objects.with_totals().get()
         self.assertEqual((case.fee, case.status), (0, "pending"))
+
+    def test_received_more_than_fee_becomes_the_fee(self):
+        f = workbook_file([[self.day, "Ruby Hall Clinic", 5000, "", "IP 9", "", 6000, "", ""]])
+        self.upload(f)
+        case = Case.objects.with_totals().get()
+        self.assertEqual((case.fee, case.status), (Decimal("6000"), "paid"))

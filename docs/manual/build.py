@@ -171,7 +171,7 @@ topic("Hospital not in the list? Add it", [
 topic("Step 3 - Date, fee, patient and surgeon", [
     "<b>Case date</b> is today by default. Change it if the case was on another day.",
     "Type the <b>Fee</b> in rupees (numbers only, e.g. 9000). <b>Not decided yet?</b> Leave it empty - the case is "
-    "shown as <b>Fee TBD</b>, stays in your pending list with reminders, and you enter the fee when the payment comes in.",
+    "shown as <b>Fee TBD</b>, stays in your pending list with reminders, and the amount you record when it is paid becomes the fee.",
     "Type the <b>Patient name</b> (optional).",
     "<b>Surgeon</b>: tap the box and type a few letters (e.g. <i>kul</i> finds Dr. Neha Kulkarni). "
     "Surgeons who called you to this hospital before are listed first, and the last one is picked for you.",
@@ -276,8 +276,9 @@ sec("payments", "7. Recording payments")
 topic("Note a payment you received", [
     "Open the case → tap <b>Record payment</b>.",
     "The <b>Amount</b> is filled with what is still due - change it if you received less (a part payment).",
-    "<b>Case fee</b> - the total fee for the case. Fee was not decided when the case was added? Enter it here now. "
-    "Hospital paid a different amount than expected? Correct the fee here.",
+    "<b>Fee not decided yet?</b> Just enter the amount received - it becomes the fee. Received more than the fee? "
+    "The fee is raised to what you received. Nothing to change first.",
+    "<b>Case fee</b> (optional) - type a different total only if needed, e.g. more is still to come.",
     "Check the <b>Payment date</b> and choose the <b>Mode</b> (UPI, bank transfer, cheque, cash...).",
     "<b>Received by</b> - who received the money, e.g. <i>Dr. Mehta</i> or <i>Clinic reception</i> (optional). "
     "Names you used before are suggested as you type.",
