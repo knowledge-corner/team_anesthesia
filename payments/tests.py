@@ -85,6 +85,23 @@ class PaymentViewTests(TestCase):
                          {"amount": "1000", "payment_date": timezone.localdate().isoformat(), "mode": "upi"})
         self.assertEqual(Case.objects.get(pk=self.case.pk).fee, Decimal("5000"))
 
+    def test_paid_case_shows_edit_button_for_each_payment(self):
+        payment = Payment.objects.create(case=self.case, amount=Decimal("5000"))
+        page = self.client.get(self.case.get_absolute_url())
+        self.assertNotContains(page, "Record payment")  # fully paid
+        self.assertContains(page, f'href="{reverse("payments:edit", args=[payment.pk])}" class="btn')
+        self.assertContains(page, "Edit payment</a>")  # top button where "Record payment" was
+        Payment.objects.create(case=make_case(self.doctor, self.hospital, fee=0), amount=Decimal("1"))
+        second = Payment.objects.create(case=self.case, amount=Decimal("0.01"))
+        self.assertContains(self.client.get(self.case.get_absolute_url()), 'href="#payments"')
+        second.delete()
+        edit = self.client.get(reverse("payments:edit", args=[payment.pk]))
+        self.assertContains(edit, "Edit payment")
+        self.client.post(reverse("payments:edit", args=[payment.pk]), {
+            "amount": "4500", "payment_date": timezone.localdate().isoformat(), "mode": "upi"})
+        payment.refresh_from_db()
+        self.assertEqual(payment.amount, Decimal("4500"))
+
     def test_edit_payment_allows_same_amount(self):
         payment = Payment.objects.create(case=self.case, amount=Decimal("5000"))
         response = self.client.post(reverse("payments:edit", args=[payment.pk]), {
