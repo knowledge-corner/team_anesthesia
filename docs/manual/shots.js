@@ -109,7 +109,7 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
   const caseUrl = await p.evaluate(async (B) => { const r = await fetch('/cases/?q=Deshmukh'); const t = await r.text(); const m = t.match(/href="(\/cases\/\d+\/)"/); return m ? m[1] : null; }, B);
   await step('detail', async () => {
     await p.goto(B + caseUrl); await shot(p, '42-case-detail', { hl: ['a[href$="/edit/"]', 'a[href$="/delete/"]'] });
-    await shot(p, '43-case-detail-lower', { scroll: 'text=Follow-ups', hl: ['.alert.small', '.list-group-item .btn-outline-secondary'] });
+    await shot(p, '43-case-detail-lower', { scroll: 'text=Follow-ups', hl: ['.alert.small'] });
   });
   await step('pay', async () => {
     const id = caseUrl.match(/\d+/)[0];

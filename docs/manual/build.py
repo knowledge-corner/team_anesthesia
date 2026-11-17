@@ -258,9 +258,8 @@ topic("Case details", [
 topic("Payments and follow-ups of a case", [
     "Scroll down to see <b>Record payment</b> and <b>Log follow-up</b> buttons.",
     "Every payment received (with who received it) and every follow-up call is listed with its date.",
-    "Wrong amount, date or mode? Tap <b>Edit</b> next to the payment, correct it and tap <b>Save payment</b>. "
-    "The bin button on that page deletes the payment.",
-    "Fully paid case? <b>Record payment</b> is replaced by an <b>Edit payment</b> button in the same place.",
+    "Wrong amount, date or mode? Fully paid case: tap the green <b>Edit payment</b> button (where Record payment was). "
+    "Otherwise tap the payment in the list. Correct it and tap <b>Save payment</b>; the bin button there deletes it.",
     "The box above the payments shows the <b>next reminder date</b>, or that a reminder is due now.",
 ], img="43-case-detail-lower")
 topic("Edit a case", [
@@ -481,8 +480,8 @@ topic("Hospital directory", [
 sec("faq", "14. Questions and quick help")
 table("Common questions", ["Question", "Answer"], [
     ["I entered the wrong fee or date.", "Open the case → <b>Edit</b> → correct it → <b>Save case</b>."],
-    ["I recorded a payment twice.", "Open the case, tap <b>Edit</b> next to the wrong payment, then tap the <b>bin</b> button to delete it."],
-    ["I entered the wrong payment amount.", "Open the case, tap <b>Edit</b> next to the payment, correct the amount (and the fee if needed), <b>Save payment</b>."],
+    ["I recorded a payment twice.", "Open the case, tap the wrong payment in the Payments list, then tap the <b>bin</b> button to delete it."],
+    ["I entered the wrong payment amount.", "Open the case, tap <b>Edit payment</b> (or the payment in the list), correct the amount (and the fee if needed), <b>Save payment</b>."],
     ["The hospital paid only part of the fee.", "Record what you received. The case stays <b>Partially Paid</b> until the rest comes in."],
     ["The hospital promised to pay on a date.", "<b>Log follow-up</b> and enter the <b>Promised payment date</b>. You are reminded on that date."],
     ["I did not get a notification.", "Reminders come only on the expected payment date (or a date you set), at your notification time. "

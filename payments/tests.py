@@ -89,8 +89,8 @@ class PaymentViewTests(TestCase):
         payment = Payment.objects.create(case=self.case, amount=Decimal("5000"))
         page = self.client.get(self.case.get_absolute_url())
         self.assertNotContains(page, "Record payment")  # fully paid
-        self.assertContains(page, f'href="{reverse("payments:edit", args=[payment.pk])}" class="btn')
-        self.assertContains(page, "Edit payment</a>")  # top button where "Record payment" was
+        self.assertContains(page, "Edit payment</a>", count=1)  # one green button where "Record payment" was
+        self.assertEqual(page.content.decode().count('<i class="bi bi-pencil"></i> Edit</a>'), 1)  # only the case's own Edit; no Edit button per payment
         Payment.objects.create(case=make_case(self.doctor, self.hospital, fee=0), amount=Decimal("1"))
         second = Payment.objects.create(case=self.case, amount=Decimal("0.01"))
         self.assertContains(self.client.get(self.case.get_absolute_url()), 'href="#payments"')
