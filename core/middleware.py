@@ -38,3 +38,19 @@ class SignOutAfterMiddleware:
                 return redirect(f"{settings.LOGIN_URL_PATH}?next={request.get_full_path()}"
                                 if request.method == "GET" else settings.LOGIN_URL_PATH)
         return self.get_response(request)
+
+
+class FreshPagesMiddleware:
+    """Signed-in pages are never kept by the browser, so Back always shows fresh data
+    (a case paid a moment ago shows Paid) and patient details are not stored on the phone."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        user = getattr(request, "user", None)
+        if (user is not None and user.is_authenticated and "Cache-Control" not in response
+                and response.get("Content-Type", "").startswith("text/html")):
+            response["Cache-Control"] = "no-store"
+        return response

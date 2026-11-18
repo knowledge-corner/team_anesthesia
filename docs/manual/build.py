@@ -285,6 +285,8 @@ topic("Note a payment you received", [
     "Names you used before are suggested as you type.",
     "Optional: add the transaction / cheque number.",
     "Tap <b>Save payment</b>. The case status updates automatically.",
+    "Came from a filtered list (e.g. Cases → Ruby Hall → Not fully paid)? Press <b>Back</b> (phone or the arrow at the top): "
+    "you return to the same list with your filters, and the case shows <b>Paid just now</b> for 30 minutes.",
 ], img="44-record-payment",
    tip="Got paid in parts? Record each part separately. The case shows Partially Paid until the full fee is received.")
 topic("Bulk payment - tick many cases (phone)", [

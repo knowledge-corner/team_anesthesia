@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.core import signing
+from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -19,7 +20,7 @@ from core.permissions import selected_doctor, visible_doctors
 
 from core.templatetags.money import inr
 
-from . import bulk, services
+from . import bulk, recent, services
 from .forms import BulkPaymentForm, BulkUploadForm, PaymentForm, followup_form
 from .models import Payment, PaymentFollowUp
 
@@ -61,6 +62,7 @@ def record_payment(request, case_pk=None):
         payment.created_by = request.user
         fee_changed = form.save_fee(payment.case)
         payment.save()
+        recent.mark_paid(request, [payment.case_id])
         messages.success(request, f"Payment of {payment.amount:,.0f} recorded."
                                   + (f" Case fee set to {payment.case.fee:,.0f}." if fee_changed else ""))
         return redirect(_next_url(request, reverse("cases:detail", args=[payment.case_id])))
@@ -88,6 +90,7 @@ def edit_payment(request, pk):
         if form.is_valid():
             fee_changed = form.save_fee(payment.case)
             form.save()
+            recent.mark_paid(request, [payment.case_id])
             messages.success(request, "Payment updated."
                                       + (f" Case fee set to {payment.case.fee:,.0f}." if fee_changed else ""))
             return redirect(payment.case)
@@ -196,6 +199,18 @@ def receivables(request):
     if sort not in SORTS:
         sort = "oldest"
     cases.sort(key=SORTS[sort][1])
+    # Paid a moment ago (e.g. with the Paid button here): keep it in the list, marked Paid.
+    shown = {c.pk for c in cases}
+    paid_now = [pk for pk in recent.just_paid_ids(request) if pk not in shown]
+    if paid_now:
+        extra = Case.objects.for_user(request.user).with_totals().filter(pk__in=paid_now, is_open=False)
+        if doctor:
+            extra = extra.filter(doctor=doctor)
+        if hospital.isdigit():
+            extra = extra.filter(hospital_id=hospital)
+        for c in extra.select_related("hospital", "doctor", "surgeon"):
+            c.just_paid = True
+            cases.insert(0, c)
     attach_call_targets(cases)
 
     return render(request, "payments/receivables.html", {
@@ -210,10 +225,13 @@ def receivables(request):
 def _bulk_context(request):
     from cases.views import filter_cases
     qs, ctx = filter_cases(request)
-    cases = list(qs.filter(is_open=True).order_by("case_date", "id"))
+    just_paid = recent.just_paid_ids(request)
+    cases = list(qs.filter(Q(is_open=True) | Q(pk__in=just_paid)).order_by("case_date", "id"))
     for c in cases:
-        c.tickable = bulk.tickable(c)
+        c.just_paid = c.pk in just_paid and not c.is_open
+        c.tickable = bulk.tickable(c) and not c.just_paid
     ctx["cases"] = cases
+    ctx["open_cases"] = [c for c in cases if not c.just_paid]
     ctx["tickable_count"] = sum(c.tickable for c in cases)
     parts = []
     if ctx["selected_doctor"]:
@@ -245,6 +263,7 @@ def bulk_payment(request):
             d = form.cleaned_data
             created = bulk.record_ticked(chosen, d["payment_date"], d["mode"], d["reference_no"],
                                          d["received_by"], d["notes"], request.user)
+            recent.mark_paid(request, [p.case_id for p in created])
             total = sum(p.amount for p in created)
             messages.success(request, f"{len(created)} payment{'s' if len(created) != 1 else ''} recorded "
                                       f"· {inr(total)}.")
@@ -258,7 +277,7 @@ def bulk_payment(request):
 @login_required
 def bulk_csv(request):
     ctx = _bulk_context(request)
-    response = HttpResponse(bulk.build_csv(ctx["cases"]), content_type="text/csv; charset=utf-8")
+    response = HttpResponse(bulk.build_csv(ctx["open_cases"]), content_type="text/csv; charset=utf-8")
     name = slugify(ctx["selected_hospital"].name) if ctx["selected_hospital"] else "pending"
     response["Content-Disposition"] = (f'attachment; filename="bulk-payment-{name}-'
                                        f'{timezone.localdate():%Y-%m-%d}.csv"')
@@ -275,7 +294,14 @@ def bulk_upload(request):
         except signing.BadSignature:
             messages.error(request, "This summary has expired. Please upload the file again.")
             return redirect(back)
+        pending = request.session.get("bulk_review")
+        if not pending or pending.get("done"):
+            messages.info(request, "These payments were already recorded.")
+            return redirect(back)
         created = bulk.commit_upload(rows, request.user)
+        pending["done"] = True
+        request.session["bulk_review"] = pending
+        recent.mark_paid(request, [p.case_id for p in created])
         total = sum(p.amount for p in created)
         messages.success(request, f"{len(created)} payment{'s' if len(created) != 1 else ''} recorded from the file "
                                   f"· {inr(total)}.")
@@ -288,11 +314,33 @@ def bulk_upload(request):
     if error or not rows:
         messages.error(request, error or "No amounts found in the file. Fill the 'Amount received' column.")
         return redirect(back + ("&" if "?" in back else "?") + "tab=csv")
-    good = bulk.rows_to_json(rows)
+    from dataclasses import asdict
+    request.session["bulk_review"] = {
+        "rows": [asdict(r) for r in rows], "filename": form.cleaned_data["file"].name,
+        "filter_query": request.POST.get("filter_query", ""),
+    }
+    return redirect("payments:bulk_review")
+
+
+@login_required
+def bulk_review(request):
+    """'Check before saving' for an uploaded file (a normal page, so Back works)."""
+    data = request.session.get("bulk_review")
+    if not data:
+        return redirect("payments:bulk")
+    if data.get("done"):
+        fq = data["filter_query"]
+        return render(request, "payments/bulk_review.html", {
+            "done": True, "rows": [], "filename": data["filename"], "filter_query": fq,
+            "back": reverse("payments:bulk") + (f"?{fq}" if fq else ""),
+        })
+    rows = data["rows"]
+    good = [r for r in rows if not r["error"]]
+    fq = data["filter_query"]
+    back = reverse("payments:bulk") + (f"?{fq}" if fq else "")
     return render(request, "payments/bulk_review.html", {
         "rows": rows, "good_count": len(good), "error_count": len(rows) - len(good),
         "total": sum(Decimal(r["amount"]) for r in good),
         "signed_rows": signing.dumps(good, salt="bulk-payment", compress=True),
-        "filter_query": request.POST.get("filter_query", ""), "back": back,
-        "filename": form.cleaned_data["file"].name,
+        "filter_query": fq, "back": back, "filename": data["filename"],
     })

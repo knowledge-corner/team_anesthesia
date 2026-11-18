@@ -39,6 +39,47 @@
     });
   });
 
+  // --- Back button -------------------------------------------------------------
+  // After saving a form, Back skips the finished form (and the page shown twice because
+  // of it) and returns to the list the doctor came from, with its filters and fresh data.
+  var here = location.pathname + location.search;
+  function store(key, value) {
+    try {
+      if (value === undefined) return sessionStorage.getItem(key);
+      if (value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, value);
+    } catch (e) { return null; }
+  }
+  var navEntry = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0]) || {};
+  var firstShow = true, leavingBack = false;
+  var skipForms = document.querySelectorAll("form[data-skip-on-back]");
+  if (navEntry.type === "navigate" && skipForms.length) store("skip:" + here, null);
+  skipForms.forEach(function (f) {
+    f.addEventListener("submit", function () { store("skip:" + here, "1"); });
+  });
+  window.addEventListener("pageshow", function (e) {
+    var back = e.persisted || (firstShow && navEntry.type === "back_forward");
+    firstShow = false;
+    leavingBack = false;
+    if (!back) return;
+    if (store("skip:" + here) || store("last-page") === here) {
+      leavingBack = true;  // a saved form, or the same page again: keep going back
+      history.back();
+    } else if (e.persisted) {
+      location.reload();  // restored from memory: show fresh data
+    }
+  });
+  window.addEventListener("pagehide", function () { if (!leavingBack) store("last-page", here); });
+  // The app's back arrow works like the phone's Back button when there is a page to go back to.
+  document.querySelectorAll("[data-back]").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      var ref = document.referrer;
+      if (ref && ref.indexOf(location.origin + "/") === 0 && history.length > 1) {
+        e.preventDefault();
+        history.back();
+      }
+    });
+  });
+
   var fee = document.getElementById("id_fee");
 
   // "Payment already received" switch reveals amount + mode.

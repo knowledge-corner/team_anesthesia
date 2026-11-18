@@ -3,7 +3,7 @@
 {% block title %}Log follow-up{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center gap-2 mb-3">
-  <a href="{{ case.get_absolute_url }}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
+  <a href="{{ case.get_absolute_url }}" class="btn btn-link px-0 text-body" data-back aria-label="Back"><i class="bi bi-arrow-left fs-5"></i></a>
   <h1 class="h5 mb-0">Log payment follow-up</h1>
 </div>
 <div class="card p-3 mb-3" style="max-width: 640px;">
@@ -11,7 +11,7 @@
   <div class="small text-muted">{{ case.case_date|date:"d M Y" }}{% if case.patient_reference %} · {{ case.patient_reference }}{% endif %} · <span class="text-danger">Due {{ case.balance|inr }}</span></div>
   {% if case.call %}<a href="tel:{{ case.call.phone }}" class="btn btn-sm btn-outline-success mt-2 align-self-start"><i class="bi bi-telephone-fill"></i> Call {{ case.call.label }}</a>{% endif %}
 </div>
-<form method="post" novalidate style="max-width: 640px;">{% csrf_token %}
+<form method="post" novalidate style="max-width: 640px;" data-skip-on-back>{% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
   <div class="card p-3">
     <div class="row g-2">

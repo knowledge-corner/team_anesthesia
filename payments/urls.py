@@ -10,6 +10,7 @@ urlpatterns = [
     path("bulk/", views.bulk_payment, name="bulk"),
     path("bulk/csv/", views.bulk_csv, name="bulk_csv"),
     path("bulk/upload/", views.bulk_upload, name="bulk_upload"),
+    path("bulk/review/", views.bulk_review, name="bulk_review"),
     path("<int:pk>/edit/", views.edit_payment, name="edit"),
     path("case/<int:case_pk>/follow-up/", views.add_followup, name="followup_add"),
     path("case/<int:case_pk>/followed-up/", views.quick_followed_up, name="followup_quick"),

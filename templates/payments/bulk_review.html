@@ -8,6 +8,10 @@
 </div>
 <div class="small text-muted mb-3"><i class="bi bi-file-earmark-text"></i> {{ filename }}</div>
 
+{% if done %}
+<form data-skip-on-back></form>
+<div class="alert alert-success">These payments were recorded. <a href="{{ back }}">Back to Bulk payment</a></div>
+{% else %}
 <div class="row g-2 mb-3">
   <div class="col-6"><div class="card"><div class="card-body py-2"><div class="small text-muted">Will be recorded</div><div class="fw-semibold text-success">{{ good_count }} case{{ good_count|pluralize }} · {{ total|inr }}</div></div></div></div>
   <div class="col-6"><div class="card"><div class="card-body py-2"><div class="small text-muted">Problems (not saved)</div><div class="fw-semibold {% if error_count %}text-danger{% endif %}">{{ error_count }} row{{ error_count|pluralize }}</div></div></div></div>
@@ -32,7 +36,7 @@
   {% endfor %}
 </div></div>
 
-<form method="post" action="{% url 'payments:bulk_upload' %}" class="form-actions d-flex gap-2">
+<form method="post" action="{% url 'payments:bulk_upload' %}" class="form-actions d-flex gap-2" data-skip-on-back>
   {% csrf_token %}
   <input type="hidden" name="action" value="confirm">
   <input type="hidden" name="rows" value="{{ signed_rows }}">
@@ -41,4 +45,5 @@
   <button class="btn btn-success flex-fill" {% if not good_count %}disabled{% endif %}><i class="bi bi-check2"></i> Record {{ good_count }} payment{{ good_count|pluralize }}</button>
 </form>
 {% if error_count %}<div class="small text-muted mt-2">Rows with problems are skipped. Fix them in the file and upload again, or record them one by one.</div>{% endif %}
+{% endif %}
 {% endblock %}

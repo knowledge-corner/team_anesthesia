@@ -3,12 +3,12 @@
 {% block title %}{% if is_new %}Add Case{% else %}Edit Case{% endif %}{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center gap-2 mb-3">
-  <a href="{% if case %}{{ case.get_absolute_url }}{% else %}{% url 'dashboard:home' %}{% endif %}" class="btn btn-link px-0 text-body"><i class="bi bi-arrow-left fs-5"></i></a>
+  <a href="{% if case %}{{ case.get_absolute_url }}{% else %}{% url 'dashboard:home' %}{% endif %}" class="btn btn-link px-0 text-body" data-back aria-label="Back"><i class="bi bi-arrow-left fs-5"></i></a>
   <h1 class="h5 mb-0 flex-fill">{% if is_new %}Add completed case{% else %}Edit case{% endif %}</h1>
   {% if is_new %}<a href="{% url 'cases:import' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload"></i> Bulk upload</a>{% endif %}
 </div>
 
-<form method="post" novalidate style="max-width: 640px;" id="case-form"
+<form method="post" novalidate style="max-width: 640px;" id="case-form" data-skip-on-back
       data-contacts-url="{% url 'contacts:for_hospital' %}" data-default-days="{{ default_days }}">{% csrf_token %}
   {% include "partials/form_errors.html" %}
   <div class="card p-3">

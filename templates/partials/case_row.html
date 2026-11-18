@@ -1,5 +1,5 @@
 {% load money %}
-<a href="{{ case.get_absolute_url }}" class="list-group-item list-group-item-action py-3">
+<a href="{{ case.get_absolute_url }}" class="list-group-item list-group-item-action py-3{% if case.just_paid %} just-paid{% endif %}">
   <div class="d-flex justify-content-between align-items-start gap-2">
     <div class="min-w-0">
       <div class="fw-semibold text-truncate">{{ case.hospital.name }}</div>
@@ -11,6 +11,7 @@
     <div class="text-end flex-shrink-0">
       <div class="fw-semibold">{% if case.fee_to_be_decided %}<span class="small text-muted fw-normal">Fee TBD</span>{% else %}{{ case.fee|inr }}{% endif %}</div>
       {% status_badge case %}
+      {% if case.just_paid %}<div class="small text-success fw-semibold mt-1"><i class="bi bi-check2-circle"></i> {% if case.status == "paid" %}Paid just now{% else %}Payment just recorded{% endif %}</div>{% endif %}
       {% if case.outstanding > 0 and case.total_paid > 0 %}<div class="small text-danger mt-1">Due {{ case.outstanding|inr }}</div>{% endif %}
     </div>
   </div>

@@ -3,10 +3,10 @@
 {% block title %}Bulk payment{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center gap-2 mb-1">
-  <a href="{% url 'cases:list' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-link px-0 text-body" aria-label="Back to cases"><i class="bi bi-arrow-left fs-5"></i></a>
+  <a href="{% url 'cases:list' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-link px-0 text-body" aria-label="Back to cases" data-back><i class="bi bi-arrow-left fs-5"></i></a>
   <h1 class="h5 mb-0">Bulk payment</h1>
 </div>
-<div class="small text-muted mb-2"><i class="bi bi-funnel"></i> {{ filter_label }} · {{ cases|length }} unpaid case{{ cases|length|pluralize }}
+<div class="small text-muted mb-2"><i class="bi bi-funnel"></i> {{ filter_label }} · {{ open_cases|length }} unpaid case{{ open_cases|length|pluralize }}
   <a href="{% url 'cases:list' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="ms-1">change</a></div>
 
 <ul class="nav nav-pills nav-fill bulk-tabs mb-3 bg-white border rounded p-1" role="tablist">
@@ -33,17 +33,19 @@
     </div>
     <div class="card mb-2"><div class="list-group list-group-flush">
       {% for case in cases %}
-      <label class="list-group-item d-flex gap-3 align-items-start py-3 {% if not case.tickable %}bg-light{% endif %}" {% if case.tickable %}style="cursor:pointer"{% endif %}>
+      <label class="list-group-item d-flex gap-3 align-items-start py-3 {% if case.just_paid %}just-paid{% elif not case.tickable %}bg-light{% endif %}" {% if case.tickable %}style="cursor:pointer"{% endif %}>
         <input class="form-check-input mt-1 flex-shrink-0 bulk-check" type="checkbox" name="case" value="{{ case.pk }}" data-amount="{{ case.fee }}"
                {% if not case.tickable %}disabled{% elif case.pk in ticked %}checked{% endif %} style="width:1.3em;height:1.3em">
         <div class="min-w-0 flex-grow-1">
           <div class="fw-semibold text-truncate">{{ case.case_date|date:"d M Y" }}{% if case.patient_name %} · {{ case.patient_name }}{% endif %}</div>
           <div class="small text-muted text-truncate">{{ case.hospital.name }}{% if case.surgeon %} · {{ case.surgeon }}{% endif %}{% if case.procedure_type %} · {{ case.procedure_type }}{% endif %}</div>
           <div class="small text-muted"><i class="bi bi-person-badge"></i> {{ case.doctor }}</div>
-          {% if not case.tickable %}<div class="small text-warning-emphasis mt-1"><i class="bi bi-info-circle"></i> {% if case.fee_to_be_decided %}Fee not set: use Record payment or the CSV{% else %}Partly paid: use Record payment or the CSV{% endif %}</div>{% endif %}
+          {% if case.just_paid %}<div class="small text-success fw-semibold mt-1"><i class="bi bi-check2-circle"></i> Paid just now</div>
+          {% elif not case.tickable %}<div class="small text-warning-emphasis mt-1"><i class="bi bi-info-circle"></i> {% if case.fee_to_be_decided %}Fee not set: use Record payment or the CSV{% else %}Partly paid: use Record payment or the CSV{% endif %}</div>{% endif %}
         </div>
         <div class="text-end flex-shrink-0">
-          {% if case.fee_to_be_decided %}<div class="small text-muted">Fee TBD</div>
+          {% if case.just_paid %}<div class="fw-semibold amount text-success">{{ case.total_paid|inr }}</div>
+          {% elif case.fee_to_be_decided %}<div class="small text-muted">Fee TBD</div>
           {% else %}<div class="fw-semibold amount">{{ case.outstanding|inr }}</div>{% if case.total_paid > 0 %}<div class="small text-muted">of {{ case.fee|inr }}</div>{% endif %}{% endif %}
         </div>
       </label>
@@ -63,8 +65,8 @@
 <div class="tab-pane fade" id="pane-csv" role="tabpanel">
   <div class="card mb-3"><div class="card-body">
     <div class="fw-semibold mb-1"><span class="badge rounded-pill text-bg-primary me-1">1</span> Download</div>
-    <div class="small text-muted mb-2">A CSV of the {{ cases|length }} unpaid case{{ cases|length|pluralize }} above. It opens in Excel.</div>
-    <a href="{% url 'payments:bulk_csv' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-download"></i> Download CSV ({{ cases|length }} case{{ cases|length|pluralize }})</a>
+    <div class="small text-muted mb-2">A CSV of the {{ open_cases|length }} unpaid case{{ open_cases|length|pluralize }} above. It opens in Excel.</div>
+    <a href="{% url 'payments:bulk_csv' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-download"></i> Download CSV ({{ open_cases|length }} case{{ open_cases|length|pluralize }})</a>
   </div></div>
   <div class="card mb-3"><div class="card-body">
     <div class="fw-semibold mb-1"><span class="badge rounded-pill text-bg-primary me-1">2</span> Fill in</div>

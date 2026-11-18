@@ -46,8 +46,11 @@ def filter_cases(request, qs=None):
     """The Cases list filters (anaesthetist, status, month, hospital, surgeon), shared with Bulk payment."""
     if qs is None:
         qs = scoped_cases(request)
+    from payments.recent import just_paid_ids
+
     qs = qs.with_totals().select_related("hospital", "doctor", "surgeon")
     g = request.GET
+    just_paid = Q(pk__in=just_paid_ids(request))  # paid a moment ago: still shown, marked Paid
     q = g.get("q", "").strip()
     status = g.get("status", "")
     hospital = g.get("hospital", "")
@@ -59,9 +62,9 @@ def filter_cases(request, qs=None):
             | Q(hospital__name__icontains=q) | Q(surgeon__name__icontains=q) | Q(notes__icontains=q)
         )
     if status in PaymentStatus.LABELS:
-        qs = qs.filter(status=status)
+        qs = qs.filter(Q(status=status) | just_paid)
     elif status == "unpaid":
-        qs = qs.filter(is_open=True)
+        qs = qs.filter(Q(is_open=True) | just_paid)
     if hospital.isdigit():
         qs = qs.filter(hospital_id=hospital)
     if surgeon.isdigit():
@@ -83,8 +86,13 @@ def filter_cases(request, qs=None):
 
 @login_required
 def case_list(request):
+    from payments.recent import just_paid_ids
+
     qs, context = filter_cases(request)
     page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    paid_now = just_paid_ids(request)
+    for case in page:
+        case.just_paid = case.pk in paid_now
     context.update({
         "page": page,
         "status_choices": PaymentStatus.CHOICES,

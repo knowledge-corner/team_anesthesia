@@ -181,3 +181,4 @@ h1.h5, .h5 { font-weight: 600; }
 .bulk-tabs .nav-link.active { background: var(--brand); color: #fff; }
 .bulk-bar { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); z-index: 5; border-radius: 12px 12px 0 0; border: 1px solid var(--bs-border-color); }
 @media (min-width: 992px) { .bulk-bar { bottom: 0; } }
+.just-paid { background: #effaf3 !important; box-shadow: inset 4px 0 0 #2f9e5b; }

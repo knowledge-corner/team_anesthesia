@@ -311,10 +311,10 @@ class BulkPaymentTests(TestCase):
         self.assertEqual([int(l.split(",")[0]) for l in lines[1:]], [self.unpaid.pk, self.partial.pk, self.tbd.pk])
         self.assertIn("TBD", lines[3])
 
-    def _upload(self, text, name="pay.csv"):
+    def _upload(self, text, name="pay.csv", follow=True):
         return self.client.post(reverse("payments:bulk_upload"), {
             "file": self.upload(name, text.encode("utf-8-sig"), content_type="text/csv"),
-            "filter_query": f"hospital={self.hospital.pk}"})
+            "filter_query": f"hospital={self.hospital.pk}"}, follow=follow)
 
     def test_upload_checks_then_records(self):
         csv_text = self.client.get(reverse("payments:bulk_csv") + f"?hospital={self.hospital.pk}").content.decode("utf-8-sig")
@@ -349,7 +349,7 @@ class BulkPaymentTests(TestCase):
         self.assertEqual(self.unpaid.payments.count(), 0)
 
     def test_upload_without_amount_column(self):
-        r = self._upload("hello,world\n1,2\n")
+        r = self._upload("hello,world\n1,2\n", follow=False)
         self.assertEqual(r.status_code, 302)
         self.assertIn("tab=csv", r["Location"])
 
@@ -360,6 +360,45 @@ class BulkPaymentTests(TestCase):
         ws.append(["Case ID", "Amount received", "Payment date"])
         ws.append([self.unpaid.pk, 9000, datetime.date(2026, 11, 2)])
         buf = io.BytesIO(); wb.save(buf)
-        r = self.client.post(reverse("payments:bulk_upload"), {"file": self.upload("pay.xlsx", buf.getvalue())})
+        r = self.client.post(reverse("payments:bulk_upload"), {"file": self.upload("pay.xlsx", buf.getvalue())}, follow=True)
         self.assertEqual(r.context["good_count"], 1)
         self.assertContains(r, "Paid in full")
+
+    def test_paid_cases_stay_in_the_filtered_lists_marked_paid(self):
+        today = timezone.localdate().isoformat()
+        unpaid_list = reverse("cases:list") + f"?hospital={self.hospital.pk}&status=unpaid"
+        self.client.post(reverse("payments:record_for_case", args=[self.unpaid.pk]),
+                         {"amount": "9000", "payment_date": today, "mode": "upi"})
+        page = self.client.get(unpaid_list)
+        self.assertIn(self.unpaid.pk, [c.pk for c in page.context["page"]])
+        self.assertContains(page, "Paid just now", count=1)
+        self.assertNotIn(self.paid.pk, [c.pk for c in page.context["page"]])  # paid earlier: not shown
+        out = self.client.get(reverse("receivables:list"))
+        self.assertContains(out, "Paid just now", count=1)
+        bulk_page = self.client.get(self.url)
+        row = next(c for c in bulk_page.context["cases"] if c.pk == self.unpaid.pk)
+        self.assertTrue(row.just_paid)
+        self.assertFalse(row.tickable)
+        self.assertNotIn(self.unpaid.pk, [c.pk for c in bulk_page.context["open_cases"]])
+        # a different browser session does not see the marker
+        self.client.logout(); sign_in(self.client, self.doctor)
+        self.assertNotContains(self.client.get(unpaid_list), "Paid just now")
+
+    def test_signed_in_pages_are_not_kept_by_the_browser(self):
+        self.assertEqual(self.client.get(reverse("cases:list"))["Cache-Control"], "no-store")
+        self.client.logout()
+        self.assertNotEqual(self.client.get(reverse("login")).get("Cache-Control"), "no-store")
+
+    def test_forms_are_skipped_on_back_and_arrows_go_back(self):
+        form = self.client.get(reverse("payments:record_for_case", args=[self.unpaid.pk]))
+        self.assertContains(form, "data-skip-on-back")
+        self.assertContains(self.client.get(self.unpaid.get_absolute_url()), "data-back")
+        self.assertContains(self.client.get(reverse("cases:list")), 'href="/cases/', )
+
+    def test_uploaded_file_cannot_be_recorded_twice(self):
+        review = self._upload(f"Case ID,Amount received\n{self.unpaid.pk},9000\n")
+        data = {"action": "confirm", "rows": review.context["signed_rows"]}
+        self.client.post(reverse("payments:bulk_upload"), data)
+        self.client.post(reverse("payments:bulk_upload"), data)
+        self.assertEqual(self.unpaid.payments.count(), 1)
+        self.assertContains(self.client.get(reverse("payments:bulk_review")), "These payments were recorded")
