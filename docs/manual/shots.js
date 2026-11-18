@@ -111,6 +111,25 @@ const HL = 'outline:3px solid #e11d48 !important; outline-offset:2px !important;
     await p.goto(B + caseUrl); await shot(p, '42-case-detail', { hl: ['a[href$="/edit/"]', 'a[href$="/delete/"]'] });
     await shot(p, '43-case-detail-lower', { scroll: 'text=Follow-ups', hl: ['.alert.small'] });
   });
+  await step('bulk', async () => {
+    await p.goto(B + '/cases/?status=unpaid&hospital=' + await p.evaluate(async () => { const r = await fetch('/hospitals/search/?q=ruby'); const j = await r.json(); return (j.results || j)[0].id; }));
+    await p.waitForTimeout(600);
+    await shot(p, '44a-bulk-button', { hl: ['a[href^="/payments/bulk/"]'] });
+    await p.click('a[href^="/payments/bulk/"]'); await p.waitForTimeout(600);
+    await p.locator('.bulk-check:not([disabled])').first().check();
+    await p.fill('#id_reference_no', 'NEFT 44120987');
+    await shot(p, '44b-bulk-tick', { hl: ['.bulk-bar'] });
+    await p.click('#tab-csv'); await p.waitForTimeout(400);
+    await shot(p, '44c-bulk-csv', { full: true });
+    const [dl] = await Promise.all([p.waitForEvent('download'), p.click('text=Download CSV')]);
+    const fs = require('fs'); const f = 'bulk.csv'; await dl.saveAs(f);
+    const fills = [',4000,,cheque,CHQ 551,,', ',,,,,,'];
+    let lines = fs.readFileSync(f, 'utf8').replace(/^\ufeff/, '').trim().split(/\r?\n/);
+    lines = lines.map((l, i) => i === 0 ? l : l.replace(/,,,,,,$/, i === 1 ? fills[0] : (i === 2 ? ',' + l.split(',')[9] + ',,bank,NEFT 1180,,' : ',,,,,,')));
+    fs.writeFileSync(f, '\ufeff' + lines.join('\n'));
+    await p.setInputFiles('#id_file', f); await p.click('text=Upload and check'); await p.waitForTimeout(600);
+    await shot(p, '44d-bulk-check', { full: true });
+  });
   await step('pay', async () => {
     const id = caseUrl.match(/\d+/)[0];
     await p.goto(B + '/payments/record/case/' + id + '/'); await shot(p, '44-record-payment', { hl: ['#id_case_fee', '#id_received_by'], full: true });

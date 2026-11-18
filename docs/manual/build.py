@@ -240,11 +240,10 @@ table("Template columns", ["Column", "What to type", "Example"], [
 sec("cases", "6. Cases of the practice")
 topic("Find any case", [
     "Tap <b>Cases</b> in the bottom bar.",
-    "Type in the search box: <b>patient</b>, <b>surgeon</b>, <b>hospital</b> or <b>IP number</b>.",
     "At the top choose <b>All anaesthetists</b> or one name (marked in red) - e.g. your own name to see only your cases.",
-    "Use the filters below it: <b>status</b>, <b>month</b>, <b>hospital</b>, <b>surgeon</b>.",
+    "Use the filters below it: <b>Status</b>, <b>Month</b>, <b>Hospital</b> (type to search) and <b>Surgeon</b>.",
     "Each row shows the hospital, date, patient, surgeon, anaesthetist, fee and status. Tap a row to open it.",
-], img="40-cases-list")
+], img="40-cases-list", tip="Looking for one patient? Reports → Cases has a search box for patient, surgeon, procedure or IP number.")
 topic("Show only unpaid cases", [
     "In the status filter choose <b>Not fully paid</b>.",
     "Tap <b>clear filters</b> to see everything again.",
@@ -288,6 +287,23 @@ topic("Note a payment you received", [
     "Tap <b>Save payment</b>. The case status updates automatically.",
 ], img="44-record-payment",
    tip="Got paid in parts? Record each part separately. The case shows Partially Paid until the full fee is received.")
+topic("Bulk payment - tick many cases (phone)", [
+    "A hospital paid several cases together? <b>Cases</b> → filter by <b>Hospital</b> (and anaesthetist or month if needed) → tap the small green <b>Bulk payment</b> button.",
+    "The <b>Tick cases</b> tab lists the unpaid cases of that filter.",
+    "Enter the <b>payment date</b>, <b>mode</b>, <b>reference no.</b> and <b>received by</b> once - they apply to every ticked case.",
+    "Tick the cases that were paid (or <b>Select all</b>). Each ticked case is recorded as paid for its <b>fee</b>.",
+    "The bar at the bottom shows how many cases and the total. Tap <b>Record payments</b> and confirm.",
+], img="44a-bulk-button", img2="44b-bulk-tick", caption="Bulk payment button", caption2="Tick the paid cases",
+   note="Partly paid cases and cases with no fee yet cannot be ticked - use Record payment on the case, or the CSV.")
+topic("Bulk payment - CSV file (laptop)", [
+    "Open Bulk payment the same way and choose the <b>CSV download / upload</b> tab (it opens by default on a laptop).",
+    "<b>1. Download CSV</b> - one row per unpaid case of the filter. It opens in Excel.",
+    "<b>2. Fill in</b> the <b>Amount received</b> for each case that was paid. Payment date (DD/MM/YYYY), Mode and Reference are optional. "
+    "Leave the amount blank to skip a case. Do not change the Case ID. Save as CSV (Excel .xlsx also works).",
+    "<b>3. Upload and check</b> - a summary shows what will happen to each case: <b>Paid in full</b>, <b>Partly paid</b> (less than due), "
+    "<b>Fee set</b> (no fee yet) or <b>fee raised</b> (more than the fee). Rows with problems are listed in red and skipped.",
+    "Tap <b>Record payments</b> to save, or <b>Cancel</b> to change nothing.",
+], img="44c-bulk-csv", img2="44d-bulk-check", caption="Download, fill, upload", caption2="Check before saving")
 
 # --------------------------------------------------------------------------- follow-ups
 sec("followups", "8. Outstanding money and follow-ups")

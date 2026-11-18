@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Check bulk payment{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-1">
+  <a href="{{ back }}{% if '?' in back %}&{% else %}?{% endif %}tab=csv" class="btn btn-link px-0 text-body" aria-label="Back"><i class="bi bi-arrow-left fs-5"></i></a>
+  <h1 class="h5 mb-0">Check before saving</h1>
+</div>
+<div class="small text-muted mb-3"><i class="bi bi-file-earmark-text"></i> {{ filename }}</div>
+
+<div class="row g-2 mb-3">
+  <div class="col-6"><div class="card"><div class="card-body py-2"><div class="small text-muted">Will be recorded</div><div class="fw-semibold text-success">{{ good_count }} case{{ good_count|pluralize }} · {{ total|inr }}</div></div></div></div>
+  <div class="col-6"><div class="card"><div class="card-body py-2"><div class="small text-muted">Problems (not saved)</div><div class="fw-semibold {% if error_count %}text-danger{% endif %}">{{ error_count }} row{{ error_count|pluralize }}</div></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="list-group list-group-flush">
+  {% for r in rows %}
+  <div class="list-group-item py-2 {% if r.error %}bg-danger-subtle{% endif %}">
+    <div class="d-flex justify-content-between gap-2">
+      <div class="min-w-0">
+        <div class="fw-semibold text-truncate">{% if r.case_date %}{{ r.case_date }} · {{ r.patient|default:r.hospital }}{% else %}Line {{ r.line }}{% endif %}</div>
+        <div class="small text-muted text-truncate">{% if r.hospital %}{{ r.hospital }} · {% endif %}Case {{ r.case_id|default:"?" }} · line {{ r.line }}</div>
+        {% if not r.error %}<div class="small text-muted">{{ r.payment_label }} · {{ r.mode_label }}{% if r.reference_no %} · {{ r.reference_no }}{% endif %}</div>{% endif %}
+        {% if r.error %}<div class="small text-danger"><i class="bi bi-exclamation-triangle"></i> {{ r.error }}</div>
+        {% else %}<div class="small {% if 'Partly' in r.result %}text-warning-emphasis{% else %}text-success{% endif %}">{{ r.result }}</div>{% endif %}
+      </div>
+      <div class="text-end flex-shrink-0">
+        <div class="fw-semibold amount">{% if r.error %}{{ r.amount }}{% else %}{{ r.amount|inr }}{% endif %}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div></div>
+
+<form method="post" action="{% url 'payments:bulk_upload' %}" class="form-actions d-flex gap-2">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="confirm">
+  <input type="hidden" name="rows" value="{{ signed_rows }}">
+  <input type="hidden" name="filter_query" value="{{ filter_query }}">
+  <a href="{{ back }}{% if '?' in back %}&{% else %}?{% endif %}tab=csv" class="btn btn-outline-secondary flex-fill">Cancel</a>
+  <button class="btn btn-success flex-fill" {% if not good_count %}disabled{% endif %}><i class="bi bi-check2"></i> Record {{ good_count }} payment{{ good_count|pluralize }}</button>
+</form>
+{% if error_count %}<div class="small text-muted mt-2">Rows with problems are skipped. Fix them in the file and upload again, or record them one by one.</div>{% endif %}
+{% endblock %}

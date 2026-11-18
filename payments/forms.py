@@ -136,3 +136,27 @@ def followup_form(case, *args, **kwargs):
         choices.append(("Other contacts", [(c.pk, c.name) for c in others]))
     field.widget.choices = choices
     return form
+
+
+class BulkPaymentForm(forms.Form):
+    """Details shared by every ticked case."""
+    payment_date = forms.DateField(initial=timezone.localdate,
+                                   widget=forms.DateInput(attrs={"type": "date", "class": "form-control form-control-sm"}, format="%Y-%m-%d"))
+    mode = forms.ChoiceField(choices=Payment.MODE_CHOICES, initial="bank",
+                             widget=forms.Select(attrs={"class": "form-select form-select-sm"}))
+    reference_no = forms.CharField(label="Reference no.", max_length=100, required=False,
+                                   widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "NEFT / cheque no."}))
+    received_by = forms.CharField(max_length=100, required=False,
+                                  widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "list": "received-by-options", "placeholder": "e.g. Self"}))
+    notes = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}))
+
+    def clean_payment_date(self):
+        value = self.cleaned_data["payment_date"]
+        if value > timezone.localdate():
+            raise forms.ValidationError("Payment date cannot be in the future.")
+        return value
+
+
+class BulkUploadForm(forms.Form):
+    file = forms.FileField(label="Filled-in CSV",
+                           widget=forms.ClearableFileInput(attrs={"class": "form-control form-control-sm", "accept": ".csv,.xlsx,text/csv"}))

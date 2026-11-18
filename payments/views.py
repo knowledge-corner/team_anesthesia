@@ -1,4 +1,11 @@
+import datetime
+from decimal import Decimal
+
 from django.contrib import messages
+from django.core import signing
+from django.http import HttpResponse
+from django.utils import timezone
+from django.utils.text import slugify
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -10,8 +17,10 @@ from cases.views import get_case_for_user
 from contacts.services import attach_call_targets
 from core.permissions import selected_doctor, visible_doctors
 
-from . import services
-from .forms import PaymentForm, followup_form
+from core.templatetags.money import inr
+
+from . import bulk, services
+from .forms import BulkPaymentForm, BulkUploadForm, PaymentForm, followup_form
 from .models import Payment, PaymentFollowUp
 
 
@@ -193,4 +202,97 @@ def receivables(request):
         "cases": cases, "summary": summary, "ageing": ageing, "view": view, "sort": sort,
         "sorts": [(k, v[0]) for k, v in SORTS.items()], "hospital": hospital,
         "doctors": visible_doctors(request.user), "selected_doctor": doctor,
+    })
+
+
+# --- Bulk payment ------------------------------------------------------------
+
+def _bulk_context(request):
+    from cases.views import filter_cases
+    qs, ctx = filter_cases(request)
+    cases = list(qs.filter(is_open=True).order_by("case_date", "id"))
+    for c in cases:
+        c.tickable = bulk.tickable(c)
+    ctx["cases"] = cases
+    ctx["tickable_count"] = sum(c.tickable for c in cases)
+    parts = []
+    if ctx["selected_doctor"]:
+        parts.append(str(ctx["selected_doctor"]))
+    if ctx["selected_hospital"]:
+        parts.append(ctx["selected_hospital"].name)
+    if ctx["selected_surgeon"]:
+        parts.append(ctx["selected_surgeon"].name)
+    if ctx["month"]:
+        try:
+            parts.append(datetime.date.fromisoformat(ctx["month"] + "-01").strftime("%b %Y"))
+        except ValueError:
+            pass
+    ctx["filter_label"] = " · ".join(parts) or "All hospitals and anaesthetists"
+    return ctx
+
+
+@login_required
+def bulk_payment(request):
+    """Tick cases (phone) or CSV download / upload (laptop) for the cases filtered on the Cases list."""
+    ctx = _bulk_context(request)
+    form = BulkPaymentForm(request.POST or None)
+    if request.method == "POST" and request.POST.get("action") == "tick":
+        ids = {int(x) for x in request.POST.getlist("case") if x.isdigit()}
+        chosen = [c for c in ctx["cases"] if c.pk in ids]
+        if not chosen:
+            messages.error(request, "Tick at least one case.")
+        elif form.is_valid():
+            d = form.cleaned_data
+            created = bulk.record_ticked(chosen, d["payment_date"], d["mode"], d["reference_no"],
+                                         d["received_by"], d["notes"], request.user)
+            total = sum(p.amount for p in created)
+            messages.success(request, f"{len(created)} payment{'s' if len(created) != 1 else ''} recorded "
+                                      f"· {inr(total)}.")
+            return redirect(reverse("payments:bulk") + (f"?{ctx['filter_query']}" if ctx["filter_query"] else ""))
+        ctx["ticked"] = ids
+    ctx.update({"form": form, "upload_form": BulkUploadForm(),
+                "received_by_suggestions": received_by_suggestions(request.user)})
+    return render(request, "payments/bulk.html", ctx)
+
+
+@login_required
+def bulk_csv(request):
+    ctx = _bulk_context(request)
+    response = HttpResponse(bulk.build_csv(ctx["cases"]), content_type="text/csv; charset=utf-8")
+    name = slugify(ctx["selected_hospital"].name) if ctx["selected_hospital"] else "pending"
+    response["Content-Disposition"] = (f'attachment; filename="bulk-payment-{name}-'
+                                       f'{timezone.localdate():%Y-%m-%d}.csv"')
+    return response
+
+
+@login_required
+@require_POST
+def bulk_upload(request):
+    back = reverse("payments:bulk") + (f"?{request.POST.get('filter_query')}" if request.POST.get("filter_query") else "")
+    if request.POST.get("action") == "confirm":
+        try:
+            rows = signing.loads(request.POST.get("rows", ""), salt="bulk-payment", max_age=6 * 3600)
+        except signing.BadSignature:
+            messages.error(request, "This summary has expired. Please upload the file again.")
+            return redirect(back)
+        created = bulk.commit_upload(rows, request.user)
+        total = sum(p.amount for p in created)
+        messages.success(request, f"{len(created)} payment{'s' if len(created) != 1 else ''} recorded from the file "
+                                  f"· {inr(total)}.")
+        return redirect(back)
+    form = BulkUploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose the filled-in CSV file first.")
+        return redirect(back + ("&" if "?" in back else "?") + "tab=csv")
+    rows, error = bulk.parse_upload(form.cleaned_data["file"])
+    if error or not rows:
+        messages.error(request, error or "No amounts found in the file. Fill the 'Amount received' column.")
+        return redirect(back + ("&" if "?" in back else "?") + "tab=csv")
+    good = bulk.rows_to_json(rows)
+    return render(request, "payments/bulk_review.html", {
+        "rows": rows, "good_count": len(good), "error_count": len(rows) - len(good),
+        "total": sum(Decimal(r["amount"]) for r in good),
+        "signed_rows": signing.dumps(good, salt="bulk-payment", compress=True),
+        "filter_query": request.POST.get("filter_query", ""), "back": back,
+        "filename": form.cleaned_data["file"].name,
     })

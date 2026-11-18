@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Bulk payment{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-1">
+  <a href="{% url 'cases:list' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-link px-0 text-body" aria-label="Back to cases"><i class="bi bi-arrow-left fs-5"></i></a>
+  <h1 class="h5 mb-0">Bulk payment</h1>
+</div>
+<div class="small text-muted mb-2"><i class="bi bi-funnel"></i> {{ filter_label }} · {{ cases|length }} unpaid case{{ cases|length|pluralize }}
+  <a href="{% url 'cases:list' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="ms-1">change</a></div>
+
+<ul class="nav nav-pills nav-fill bulk-tabs mb-3 bg-white border rounded p-1" role="tablist">
+  <li class="nav-item" role="presentation"><button type="button" class="nav-link py-1" id="tab-tick" data-bs-toggle="pill" data-bs-target="#pane-tick" role="tab"><i class="bi bi-check2-square"></i> Tick cases</button></li>
+  <li class="nav-item" role="presentation"><button type="button" class="nav-link py-1" id="tab-csv" data-bs-toggle="pill" data-bs-target="#pane-csv" role="tab"><i class="bi bi-filetype-csv"></i> CSV download / upload</button></li>
+</ul>
+
+<div class="tab-content">
+<div class="tab-pane fade" id="pane-tick" role="tabpanel">
+  <form method="post" id="tick-form">
+    {% csrf_token %}<input type="hidden" name="action" value="tick">
+    <div class="card mb-3"><div class="card-body py-2"><div class="row g-2">
+      <div class="col-6"><label class="form-label small text-muted mb-1" for="{{ form.payment_date.id_for_label }}">Payment date</label>{{ form.payment_date }}{% for e in form.payment_date.errors %}<div class="small text-danger">{{ e }}</div>{% endfor %}</div>
+      <div class="col-6"><label class="form-label small text-muted mb-1" for="{{ form.mode.id_for_label }}">Mode</label>{{ form.mode }}</div>
+      <div class="col-6"><label class="form-label small text-muted mb-1" for="{{ form.reference_no.id_for_label }}">Reference no.</label>{{ form.reference_no }}</div>
+      <div class="col-6"><label class="form-label small text-muted mb-1" for="{{ form.received_by.id_for_label }}">Received by</label>{{ form.received_by }}</div>
+    </div>
+    <datalist id="received-by-options">{% for name in received_by_suggestions %}<option value="{{ name }}">{% endfor %}</datalist>
+    </div></div>
+
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <div class="section-title my-0">Unpaid cases</div>
+      {% if tickable_count %}<button type="button" class="btn btn-link btn-sm p-0" id="select-all">Select all</button>{% endif %}
+    </div>
+    <div class="card mb-2"><div class="list-group list-group-flush">
+      {% for case in cases %}
+      <label class="list-group-item d-flex gap-3 align-items-start py-3 {% if not case.tickable %}bg-light{% endif %}" {% if case.tickable %}style="cursor:pointer"{% endif %}>
+        <input class="form-check-input mt-1 flex-shrink-0 bulk-check" type="checkbox" name="case" value="{{ case.pk }}" data-amount="{{ case.fee }}"
+               {% if not case.tickable %}disabled{% elif case.pk in ticked %}checked{% endif %} style="width:1.3em;height:1.3em">
+        <div class="min-w-0 flex-grow-1">
+          <div class="fw-semibold text-truncate">{{ case.case_date|date:"d M Y" }}{% if case.patient_name %} · {{ case.patient_name }}{% endif %}</div>
+          <div class="small text-muted text-truncate">{{ case.hospital.name }}{% if case.surgeon %} · {{ case.surgeon }}{% endif %}{% if case.procedure_type %} · {{ case.procedure_type }}{% endif %}</div>
+          <div class="small text-muted"><i class="bi bi-person-badge"></i> {{ case.doctor }}</div>
+          {% if not case.tickable %}<div class="small text-warning-emphasis mt-1"><i class="bi bi-info-circle"></i> {% if case.fee_to_be_decided %}Fee not set: use Record payment or the CSV{% else %}Partly paid: use Record payment or the CSV{% endif %}</div>{% endif %}
+        </div>
+        <div class="text-end flex-shrink-0">
+          {% if case.fee_to_be_decided %}<div class="small text-muted">Fee TBD</div>
+          {% else %}<div class="fw-semibold amount">{{ case.outstanding|inr }}</div>{% if case.total_paid > 0 %}<div class="small text-muted">of {{ case.fee|inr }}</div>{% endif %}{% endif %}
+        </div>
+      </label>
+      {% empty %}
+      <div class="p-4 text-center text-muted">No unpaid cases for this filter.</div>
+      {% endfor %}
+    </div></div>
+    <div class="small text-muted mb-2">Each ticked case is recorded as paid for its fee.</div>
+
+    <div class="bulk-bar bg-white border-top shadow-sm px-3 py-2 d-flex justify-content-between align-items-center gap-2">
+      <div><div class="fw-semibold" id="bulk-summary">0 cases · ₹0</div><div class="small text-muted">will be recorded</div></div>
+      <button class="btn btn-success" id="bulk-save" disabled><i class="bi bi-check2"></i> Record payments</button>
+    </div>
+  </form>
+</div>
+
+<div class="tab-pane fade" id="pane-csv" role="tabpanel">
+  <div class="card mb-3"><div class="card-body">
+    <div class="fw-semibold mb-1"><span class="badge rounded-pill text-bg-primary me-1">1</span> Download</div>
+    <div class="small text-muted mb-2">A CSV of the {{ cases|length }} unpaid case{{ cases|length|pluralize }} above. It opens in Excel.</div>
+    <a href="{% url 'payments:bulk_csv' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-download"></i> Download CSV ({{ cases|length }} case{{ cases|length|pluralize }})</a>
+  </div></div>
+  <div class="card mb-3"><div class="card-body">
+    <div class="fw-semibold mb-1"><span class="badge rounded-pill text-bg-primary me-1">2</span> Fill in</div>
+    <div class="small text-muted">For each case that was paid, type the <b>Amount received</b>. Payment date, Mode and Reference are optional (date: today, mode: bank transfer).
+      Leave the amount blank to skip a case. Do not change the Case ID.</div>
+    <ul class="small text-muted mb-0 mt-2 ps-3">
+      <li>Less than the amount due: the case becomes <b>Partly paid</b>.</li>
+      <li>Fee not set yet: the amount becomes the fee.</li>
+      <li>More than the fee: the fee goes up.</li>
+    </ul>
+  </div></div>
+  <div class="card mb-3"><div class="card-body">
+    <div class="fw-semibold mb-1"><span class="badge rounded-pill text-bg-primary me-1">3</span> Upload</div>
+    <div class="small text-muted mb-2">You will see a summary to check before anything is saved.</div>
+    <form method="post" action="{% url 'payments:bulk_upload' %}" enctype="multipart/form-data">
+      {% csrf_token %}<input type="hidden" name="filter_query" value="{{ filter_query }}">
+      {{ upload_form.file }}
+      <button class="btn btn-primary btn-sm mt-2"><i class="bi bi-upload"></i> Upload and check</button>
+    </form>
+  </div></div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var tab = params.get('tab') || (window.matchMedia('(min-width: 992px)').matches ? 'csv' : 'tick');
+  {% if ticked %}tab = 'tick';{% endif %}
+  bootstrap.Tab.getOrCreateInstance(document.getElementById(tab === 'csv' ? 'tab-csv' : 'tab-tick')).show();
+  var checks = Array.prototype.slice.call(document.querySelectorAll('.bulk-check:not([disabled])'));
+  var summary = document.getElementById('bulk-summary'), save = document.getElementById('bulk-save');
+  var fmt = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+  function update() {
+    var n = 0, total = 0;
+    checks.forEach(function (c) { if (c.checked) { n++; total += parseFloat(c.dataset.amount) || 0; } });
+    summary.textContent = n + ' case' + (n === 1 ? '' : 's') + ' · ₹' + fmt.format(total);
+    save.disabled = n === 0;
+  }
+  checks.forEach(function (c) { c.addEventListener('change', update); });
+  var all = document.getElementById('select-all');
+  if (all) all.addEventListener('click', function () {
+    var on = checks.some(function (c) { return !c.checked; });
+    checks.forEach(function (c) { c.checked = on; });
+    all.textContent = on ? 'Clear all' : 'Select all';
+    update();
+  });
+  document.getElementById('tick-form').addEventListener('submit', function (e) {
+    var n = checks.filter(function (c) { return c.checked; }).length;
+    if (!confirm('Record ' + summary.textContent + ' as paid?')) e.preventDefault();
+  });
+  update();
+})();
+</script>
+{% endblock %}

@@ -11,28 +11,28 @@
 {% include "partials/doctor_filter.html" %}
 <form method="get" class="mb-2">
   {% if selected_doctor %}<input type="hidden" name="doctor" value="{{ selected_doctor.pk }}">{% endif %}
-  <div class="input-group mb-2">
-    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-    <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Search patient, surgeon, hospital, ref">
-  </div>
   <div class="row g-2">
     <div class="col-6 col-md-3">
-      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+      <label class="form-label small text-muted mb-1" for="f-status">Status</label>
+      <select name="status" id="f-status" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="">All statuses</option>
         <option value="unpaid" {% if status == 'unpaid' %}selected{% endif %}>Not fully paid</option>
         {% for key, label in status_choices %}<option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </div>
     <div class="col-6 col-md-3">
-      <input type="month" name="month" value="{{ month }}" class="form-control form-control-sm" onchange="this.form.submit()">
+      <label class="form-label small text-muted mb-1" for="f-month">Month</label>
+      <input type="month" name="month" id="f-month" value="{{ month }}" class="form-control form-control-sm" onchange="this.form.submit()">
     </div>
     <div class="col-12 col-md-6">
+      <label class="form-label small text-muted mb-1">Hospital</label>
       <select name="hospital" class="form-select form-select-sm" onchange="this.form.submit()" data-searchable data-search-url="{% url 'hospitals:search' %}" data-placeholder="All hospitals - type to search">
         <option value="">All hospitals</option>
         {% if selected_hospital %}<option value="{{ selected_hospital.pk }}" selected>{{ selected_hospital.name }}</option>{% endif %}
       </select>
     </div>
     <div class="col-12 col-md-6">
+      <label class="form-label small text-muted mb-1">Surgeon</label>
       <select name="surgeon" class="form-select form-select-sm" onchange="this.form.submit()" data-searchable data-placeholder="All surgeons - type to search">
         <option value="">All surgeons</option>
         {% for s in surgeons %}<option value="{{ s.pk }}" {% if surgeon == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
@@ -40,7 +40,10 @@
     </div>
   </div>
 </form>
-<div class="small text-muted mb-2">{{ page.paginator.count }} case{{ page.paginator.count|pluralize }}{% if q or status or hospital or month or surgeon %} · <a href="{% url 'cases:list' %}">clear filters</a>{% endif %}</div>
+<div class="small text-muted mb-2 d-flex justify-content-between align-items-center gap-2">
+  <span>{{ page.paginator.count }} case{{ page.paginator.count|pluralize }}{% if q or status or hospital or month or surgeon %} · <a href="{% url 'cases:list' %}">clear filters</a>{% endif %}</span>
+  <a href="{% url 'payments:bulk' %}{% if filter_query %}?{{ filter_query }}{% endif %}" class="btn btn-sm btn-outline-success py-0 px-2 text-nowrap"><i class="bi bi-cash-stack"></i> Bulk payment</a>
+</div>
 <div class="card">
   <div class="list-group list-group-flush">
     {% for case in page %}{% include "partials/case_row.html" %}{% empty %}

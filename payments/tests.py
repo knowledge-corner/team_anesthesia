@@ -250,3 +250,116 @@ class ReceivedByTests(TestCase):
         values = [c.value for row in load_workbook(io.BytesIO(response.content)).active.iter_rows() for c in row]
         self.assertIn("Received by", values)
         self.assertIn("Dr. Mehta", values)
+
+
+class BulkPaymentTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.upload = SimpleUploadedFile
+        self.doctor = make_doctor()
+        self.hospital = make_hospital()
+        self.other = make_hospital(name="Other Hospital")
+        self.unpaid = make_case(self.doctor, self.hospital, days_ago=5, fee=9000)
+        self.partial = make_case(self.doctor, self.hospital, days_ago=4, fee=11000)
+        Payment.objects.create(case=self.partial, amount=Decimal("5500"))
+        self.tbd = make_case(self.doctor, self.hospital, days_ago=3, fee=0)
+        self.paid = make_case(self.doctor, self.hospital, days_ago=2, fee=4000)
+        Payment.objects.create(case=self.paid, amount=Decimal("4000"))
+        self.elsewhere = make_case(self.doctor, self.other, days_ago=1, fee=7000)
+        sign_in(self.client, self.doctor)
+        self.url = reverse("payments:bulk") + f"?hospital={self.hospital.pk}"
+
+    def _status(self, case):
+        return Case.objects.with_totals().get(pk=case.pk)
+
+    def test_cases_list_has_bulk_button_and_no_search_box(self):
+        page = self.client.get(reverse("cases:list") + f"?hospital={self.hospital.pk}&status=unpaid")
+        self.assertNotContains(page, "Search patient")
+        self.assertContains(page, f'href="/payments/bulk/?status=unpaid&amp;hospital={self.hospital.pk}"')
+        for label in ("Status", "Month", "Hospital", "Surgeon"):
+            self.assertContains(page, f">{label}</label>")
+
+    def test_page_lists_only_unpaid_cases_of_the_filter(self):
+        page = self.client.get(self.url)
+        ids = [c.pk for c in page.context["cases"]]
+        self.assertEqual(ids, [self.unpaid.pk, self.partial.pk, self.tbd.pk])
+        tickable = {c.pk: c.tickable for c in page.context["cases"]}
+        self.assertEqual(tickable, {self.unpaid.pk: True, self.partial.pk: False, self.tbd.pk: False})
+
+    def test_ticked_cases_are_paid_for_their_fee(self):
+        today = timezone.localdate().isoformat()
+        r = self.client.post(self.url, {"action": "tick", "case": [self.unpaid.pk, self.partial.pk, self.tbd.pk, self.elsewhere.pk],
+                                        "payment_date": today, "mode": "bank", "reference_no": "NEFT 1"})
+        self.assertRedirects(r, self.url, fetch_redirect_response=False)
+        self.assertEqual(self._status(self.unpaid).status, "paid")
+        self.assertEqual(self.unpaid.payments.get().reference_no, "NEFT 1")
+        # partly paid, fee TBD and cases outside the filter are never touched by ticking
+        self.assertEqual(self.partial.payments.count(), 1)
+        self.assertEqual(self.tbd.payments.count(), 0)
+        self.assertEqual(self.elsewhere.payments.count(), 0)
+
+    def test_tick_needs_a_case(self):
+        r = self.client.post(self.url, {"action": "tick", "payment_date": timezone.localdate().isoformat(), "mode": "bank"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Payment.objects.count(), 2)
+
+    def test_csv_download_has_the_filtered_unpaid_cases(self):
+        r = self.client.get(reverse("payments:bulk_csv") + f"?hospital={self.hospital.pk}")
+        self.assertEqual(r["Content-Type"], "text/csv; charset=utf-8")
+        lines = r.content.decode("utf-8-sig").strip().splitlines()
+        self.assertTrue(lines[0].startswith("Case ID,Case date,Hospital"))
+        self.assertEqual([int(l.split(",")[0]) for l in lines[1:]], [self.unpaid.pk, self.partial.pk, self.tbd.pk])
+        self.assertIn("TBD", lines[3])
+
+    def _upload(self, text, name="pay.csv"):
+        return self.client.post(reverse("payments:bulk_upload"), {
+            "file": self.upload(name, text.encode("utf-8-sig"), content_type="text/csv"),
+            "filter_query": f"hospital={self.hospital.pk}"})
+
+    def test_upload_checks_then_records(self):
+        csv_text = self.client.get(reverse("payments:bulk_csv") + f"?hospital={self.hospital.pk}").content.decode("utf-8-sig")
+        lines = csv_text.strip().splitlines()
+        filled = [lines[0],
+                  lines[1].rstrip(",") + ",4000,01/11/2026,cheque,CHQ 77,,",   # less than due -> partly paid
+                  lines[2].rstrip(",") + ",5500,,,,,",                        # the rest -> paid
+                  lines[3].rstrip(",") + ",8000,,upi,,,",                     # fee TBD -> fee 8000
+                  "99999,,,,,,,,,,100,,,,,",                                  # unknown case
+                  str(self.paid.pk) + ",,,,,,,,,,abc,,,,,"]                   # not a number
+        review = self._upload("\n".join(filled))
+        self.assertEqual(review.status_code, 200)
+        self.assertEqual((review.context["good_count"], review.context["error_count"]), (3, 2))
+        self.assertContains(review, "Partly paid")
+        self.assertContains(review, "Fee set to ₹8,000")
+        self.assertEqual(Payment.objects.count(), 2)  # nothing saved yet
+        r = self.client.post(reverse("payments:bulk_upload"), {
+            "action": "confirm", "rows": review.context["signed_rows"], "filter_query": f"hospital={self.hospital.pk}"})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(self._status(self.unpaid).status, "partial")
+        p = self.unpaid.payments.get()
+        self.assertEqual((p.amount, p.mode, p.reference_no, p.payment_date), (Decimal("4000"), "cheque", "CHQ 77", datetime.date(2026, 11, 1)))
+        self.assertEqual(self._status(self.partial).status, "paid")
+        tbd = self._status(self.tbd)
+        self.assertEqual((tbd.fee, tbd.status), (Decimal("8000"), "paid"))
+
+    def test_upload_overpayment_raises_fee_and_tampering_is_refused(self):
+        review = self._upload(f"Case ID,Amount received\n{self.unpaid.pk},9500\n")
+        self.assertContains(review, "fee raised to ₹9,500")
+        r = self.client.post(reverse("payments:bulk_upload"), {"action": "confirm", "rows": review.context["signed_rows"] + "x"})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(self.unpaid.payments.count(), 0)
+
+    def test_upload_without_amount_column(self):
+        r = self._upload("hello,world\n1,2\n")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("tab=csv", r["Location"])
+
+    def test_upload_excel_file(self):
+        import io
+        from openpyxl import Workbook
+        wb = Workbook(); ws = wb.active
+        ws.append(["Case ID", "Amount received", "Payment date"])
+        ws.append([self.unpaid.pk, 9000, datetime.date(2026, 11, 2)])
+        buf = io.BytesIO(); wb.save(buf)
+        r = self.client.post(reverse("payments:bulk_upload"), {"file": self.upload("pay.xlsx", buf.getvalue())})
+        self.assertEqual(r.context["good_count"], 1)
+        self.assertContains(r, "Paid in full")

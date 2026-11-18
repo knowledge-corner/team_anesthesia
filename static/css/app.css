@@ -175,3 +175,9 @@ h1.h5, .h5 { font-weight: 600; }
 .combo-sub { font-size: .75rem; color: var(--text-muted); margin-top: 1px; }
 .combo-mine { font-size: .65rem; font-weight: 600; color: #2f7a52; background: #e9f6ef; border-radius: 999px; padding: .05rem .45rem; align-self: center; white-space: nowrap; }
 .combo-add { display: block; padding: .6rem .75rem; border-top: 1px solid var(--line); font-size: .85rem; text-decoration: none; }
+
+/* Bulk payment */
+.bulk-tabs .nav-link { color: var(--brand); }
+.bulk-tabs .nav-link.active { background: var(--brand); color: #fff; }
+.bulk-bar { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); z-index: 5; border-radius: 12px 12px 0 0; border: 1px solid var(--bs-border-color); }
+@media (min-width: 992px) { .bulk-bar { bottom: 0; } }

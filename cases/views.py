@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 
 from contacts.services import attach_call_targets
 from core.models import AppSettings
@@ -38,13 +39,20 @@ def get_case_for_user(request, pk):
     return get_object_or_404(Case.objects.select_related("hospital", "doctor"), pk=pk)
 
 
-@login_required
-def case_list(request):
-    qs = scoped_cases(request).with_totals().select_related("hospital", "doctor")
-    q = request.GET.get("q", "").strip()
-    status = request.GET.get("status", "")
-    hospital = request.GET.get("hospital", "")
-    month = request.GET.get("month", "")  # YYYY-MM
+FILTER_KEYS = ("doctor", "status", "month", "hospital", "surgeon", "q")
+
+
+def filter_cases(request, qs=None):
+    """The Cases list filters (anaesthetist, status, month, hospital, surgeon), shared with Bulk payment."""
+    if qs is None:
+        qs = scoped_cases(request)
+    qs = qs.with_totals().select_related("hospital", "doctor", "surgeon")
+    g = request.GET
+    q = g.get("q", "").strip()
+    status = g.get("status", "")
+    hospital = g.get("hospital", "")
+    surgeon = g.get("surgeon", "")
+    month = g.get("month", "")  # YYYY-MM
     if q:
         qs = qs.filter(
             Q(patient_reference__icontains=q) | Q(patient_name__icontains=q) | Q(procedure_type__icontains=q)
@@ -56,7 +64,6 @@ def case_list(request):
         qs = qs.filter(is_open=True)
     if hospital.isdigit():
         qs = qs.filter(hospital_id=hospital)
-    surgeon = request.GET.get("surgeon", "")
     if surgeon.isdigit():
         qs = qs.filter(surgeon_id=surgeon)
     if len(month) == 7 and month[4] == "-":
@@ -64,20 +71,26 @@ def case_list(request):
             qs = qs.filter(case_date__year=int(month[:4]), case_date__month=int(month[5:]))
         except ValueError:
             pass
-    page = Paginator(qs, 25).get_page(request.GET.get("page"))
     context = {
-        "page": page,
-        "q": q,
-        "status": status,
-        "hospital": hospital,
-        "month": month,
-        "status_choices": PaymentStatus.CHOICES,
+        "q": q, "status": status, "hospital": hospital, "month": month, "surgeon": surgeon,
         "selected_hospital": Hospital.objects.filter(pk=hospital).first() if hospital.isdigit() else None,
-        "surgeons": Surgeon.objects.for_user(request.user),
-        "surgeon": surgeon,
-        "doctors": visible_doctors(request.user),
+        "selected_surgeon": Surgeon.objects.filter(pk=surgeon).first() if surgeon.isdigit() else None,
         "selected_doctor": selected_doctor(request),
+        "filter_query": urlencode({k: g[k] for k in FILTER_KEYS if g.get(k)}),
     }
+    return qs, context
+
+
+@login_required
+def case_list(request):
+    qs, context = filter_cases(request)
+    page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    context.update({
+        "page": page,
+        "status_choices": PaymentStatus.CHOICES,
+        "surgeons": Surgeon.objects.for_user(request.user),
+        "doctors": visible_doctors(request.user),
+    })
     return render(request, "cases/case_list.html", context)
 
 
