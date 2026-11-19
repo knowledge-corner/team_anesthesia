@@ -389,11 +389,25 @@ class BulkPaymentTests(TestCase):
         self.client.logout()
         self.assertNotEqual(self.client.get(reverse("login")).get("Cache-Control"), "no-store")
 
-    def test_forms_are_skipped_on_back_and_arrows_go_back(self):
-        form = self.client.get(reverse("payments:record_for_case", args=[self.unpaid.pk]))
-        self.assertContains(form, "data-skip-on-back")
-        self.assertContains(self.client.get(self.unpaid.get_absolute_url()), "data-back")
-        self.assertContains(self.client.get(reverse("cases:list")), 'href="/cases/', )
+    def test_after_saving_the_browser_steps_back_instead_of_reopening(self):
+        case_url = self.unpaid.get_absolute_url()
+        form_url = reverse("payments:record_for_case", args=[self.unpaid.pk])
+        self.assertContains(self.client.get(form_url), "data-back-field")
+        data = {"amount": "100", "payment_date": timezone.localdate().isoformat(), "mode": "upi"}
+        # opened from the case page: step back 2 (form, case) and Back then goes where the doctor came from
+        r = self.client.post(form_url, {**data, "back_nav": f"0|{form_url}|{case_url}"})
+        self.assertTemplateUsed(r, "go_back.html")
+        self.assertContains(r, "history.go(-2)")
+        # one failed attempt before: one more step
+        r = self.client.post(form_url, {**data, "back_nav": f"1|{form_url}|{case_url}"})
+        self.assertContains(r, "history.go(-3)")
+        # opened from somewhere else (or no info): normal redirect to the case
+        r = self.client.post(form_url, {**data, "back_nav": f"0|{form_url}|/receivables/"})
+        self.assertRedirects(r, case_url, fetch_redirect_response=False)
+        r = self.client.post(form_url, data)
+        self.assertRedirects(r, case_url, fetch_redirect_response=False)
+        self.assertContains(self.client.get(case_url), "data-back")
+
 
     def test_uploaded_file_cannot_be_recorded_twice(self):
         review = self._upload(f"Case ID,Amount received\n{self.unpaid.pk},9000\n")

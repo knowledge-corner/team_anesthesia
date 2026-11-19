@@ -8,8 +8,8 @@
   {% if is_new %}<a href="{% url 'cases:import' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload"></i> Bulk upload</a>{% endif %}
 </div>
 
-<form method="post" novalidate style="max-width: 640px;" id="case-form" data-skip-on-back
-      data-contacts-url="{% url 'contacts:for_hospital' %}" data-default-days="{{ default_days }}">{% csrf_token %}
+<form method="post" novalidate style="max-width: 640px;" id="case-form"
+      data-contacts-url="{% url 'contacts:for_hospital' %}" data-default-days="{{ default_days }}">{% csrf_token %}{% include "partials/back_field.html" %}
   {% include "partials/form_errors.html" %}
   <div class="card p-3">
     <div class="mb-3">

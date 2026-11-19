@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 
 from contacts.services import attach_call_targets
+from core.backnav import finish
 from core.models import AppSettings
 from core.permissions import require_doctor_profile, scoped_cases, selected_doctor, visible_doctors
 from contacts.models import Surgeon
@@ -157,7 +158,7 @@ def case_edit(request, pk):
         case = form.save()
         form.save_contact(case)
         messages.success(request, "Case updated.")
-        return redirect(case)
+        return finish(request, case.get_absolute_url())
     return render(request, "cases/case_form.html", {
         "form": form, "case": case, "procedures": procedure_suggestions(request.user), "is_new": False,
         "default_days": AppSettings.load().default_payment_terms_days,

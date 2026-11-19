@@ -17,7 +17,7 @@
 <div class="tab-content">
 <div class="tab-pane fade" id="pane-tick" role="tabpanel">
   <form method="post" id="tick-form">
-    {% csrf_token %}<input type="hidden" name="action" value="tick">
+    {% csrf_token %}{% include "partials/back_field.html" %}<input type="hidden" name="action" value="tick">
     <div class="card mb-3"><div class="card-body py-2"><div class="row g-2">
       <div class="col-6"><label class="form-label small text-muted mb-1" for="{{ form.payment_date.id_for_label }}">Payment date</label>{{ form.payment_date }}{% for e in form.payment_date.errors %}<div class="small text-danger">{{ e }}</div>{% endfor %}</div>
       <div class="col-6"><label class="form-label small text-muted mb-1" for="{{ form.mode.id_for_label }}">Mode</label>{{ form.mode }}</div>

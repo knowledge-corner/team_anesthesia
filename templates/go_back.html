@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Saved</title>
+<style>body{font-family:system-ui,sans-serif;background:#f6f7fb;color:#444;padding:2rem 1rem;text-align:center}</style></head>
+<body>
+<p>Saved. <a href="{{ target }}">Continue</a></p>
+<script>
+  history.go(-{{ steps }});
+  // If the browser could not step back, open the page instead.
+  setTimeout(function () { location.replace("{{ target|escapejs }}"); }, 1500);
+</script>
+</body>
+</html>

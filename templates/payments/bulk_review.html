@@ -9,7 +9,6 @@
 <div class="small text-muted mb-3"><i class="bi bi-file-earmark-text"></i> {{ filename }}</div>
 
 {% if done %}
-<form data-skip-on-back></form>
 <div class="alert alert-success">These payments were recorded. <a href="{{ back }}">Back to Bulk payment</a></div>
 {% else %}
 <div class="row g-2 mb-3">
@@ -36,8 +35,8 @@
   {% endfor %}
 </div></div>
 
-<form method="post" action="{% url 'payments:bulk_upload' %}" class="form-actions d-flex gap-2" data-skip-on-back>
-  {% csrf_token %}
+<form method="post" action="{% url 'payments:bulk_upload' %}" class="form-actions d-flex gap-2">
+  {% csrf_token %}{% include "partials/back_field.html" %}
   <input type="hidden" name="action" value="confirm">
   <input type="hidden" name="rows" value="{{ signed_rows }}">
   <input type="hidden" name="filter_query" value="{{ filter_query }}">

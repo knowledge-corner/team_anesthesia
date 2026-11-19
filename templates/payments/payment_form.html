@@ -16,7 +16,7 @@
 <div class="alert alert-success">All cases are fully paid. <a href="{% url 'dashboard:home' %}">Back to dashboard</a></div>
 {% endif %}
 
-<form method="post" novalidate style="max-width: 640px;" data-skip-on-back>{% csrf_token %}
+<form method="post" novalidate style="max-width: 640px;">{% csrf_token %}{% include "partials/back_field.html" %}
   <input type="hidden" name="next" value="{{ next }}">
   {% include "partials/form_errors.html" %}
   <div class="card p-3">

@@ -73,9 +73,9 @@
         <div class="dropdown">
           <button class="btn btn-xs btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="More"><i class="bi bi-three-dots"></i></button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><form method="post" action="{% url 'payments:followup_quick' case.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="dropdown-item"><i class="bi bi-check2-all me-1"></i> Mark followed up today</button></form></li>
+            <li><form method="post" action="{% url 'payments:followup_quick' case.pk %}">{% csrf_token %}{% include "partials/back_field.html" %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="dropdown-item"><i class="bi bi-check2-all me-1"></i> Mark followed up today</button></form></li>
             <li><hr class="dropdown-divider"></li>
-            <li><form method="post" action="{% url 'payments:followup_snooze' case.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="dropdown-item" name="days" value="3"><i class="bi bi-bell me-1"></i> Remind me in 3 days</button><button class="dropdown-item" name="days" value="7">Remind me in 1 week</button><button class="dropdown-item" name="days" value="14">Remind me in 2 weeks</button></form></li>
+            <li><form method="post" action="{% url 'payments:followup_snooze' case.pk %}">{% csrf_token %}{% include "partials/back_field.html" %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="dropdown-item" name="days" value="3"><i class="bi bi-bell me-1"></i> Remind me in 3 days</button><button class="dropdown-item" name="days" value="7">Remind me in 1 week</button><button class="dropdown-item" name="days" value="14">Remind me in 2 weeks</button></form></li>
           </ul>
         </div>
         {% endif %}

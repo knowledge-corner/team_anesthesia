@@ -18,6 +18,7 @@ from cases.views import get_case_for_user
 from contacts.services import attach_call_targets
 from core.permissions import selected_doctor, visible_doctors
 
+from core.backnav import finish
 from core.templatetags.money import inr
 
 from . import bulk, recent, services
@@ -65,7 +66,7 @@ def record_payment(request, case_pk=None):
         recent.mark_paid(request, [payment.case_id])
         messages.success(request, f"Payment of {payment.amount:,.0f} recorded."
                                   + (f" Case fee set to {payment.case.fee:,.0f}." if fee_changed else ""))
-        return redirect(_next_url(request, reverse("cases:detail", args=[payment.case_id])))
+        return finish(request, _next_url(request, reverse("cases:detail", args=[payment.case_id])))
     return render(request, "payments/payment_form.html", {
         "form": form, "case": fixed_case, "unpaid_count": unpaid.count(), "next": _next_url(request, ""),
         "received_by_suggestions": received_by_suggestions(request.user),
@@ -86,14 +87,14 @@ def edit_payment(request, pk):
             case = payment.case
             payment.delete()
             messages.success(request, "Payment deleted.")
-            return redirect(case)
+            return finish(request, case.get_absolute_url())
         if form.is_valid():
             fee_changed = form.save_fee(payment.case)
             form.save()
             recent.mark_paid(request, [payment.case_id])
             messages.success(request, "Payment updated."
                                       + (f" Case fee set to {payment.case.fee:,.0f}." if fee_changed else ""))
-            return redirect(payment.case)
+            return finish(request, payment.case.get_absolute_url())
     return render(request, "payments/payment_form.html", {
         "form": form, "case": payment.case, "payment": payment,
         "received_by_suggestions": received_by_suggestions(request.user),
@@ -116,7 +117,7 @@ def add_followup(request, case_pk):
         followup.save()
         services.apply_followup(followup)
         messages.success(request, "Follow-up recorded.")
-        return redirect(_next_url(request, reverse("cases:detail", args=[case.pk])))
+        return finish(request, _next_url(request, reverse("cases:detail", args=[case.pk])))
     return render(request, "payments/followup_form.html", {"form": form, "case": case, "next": _next_url(request, "")})
 
 
@@ -134,7 +135,7 @@ def quick_followed_up(request, case_pk):
     )
     services.apply_followup(followup)
     messages.success(request, f"Marked {case.hospital} as followed up today.")
-    return redirect(_next_url(request, reverse("receivables:list")))
+    return finish(request, _next_url(request, reverse("receivables:list")))
 
 
 @login_required
@@ -148,7 +149,7 @@ def snooze_followup(request, case_pk):
     services.snooze(case, days)
     messages.info(request, f"You will be reminded about {case.hospital} on "
                            f"{case.followup_snoozed_until:%d %b %Y}.")
-    return redirect(_next_url(request, reverse("receivables:list")))
+    return finish(request, _next_url(request, reverse("receivables:list")))
 
 
 # --- Receivables -------------------------------------------------------------
@@ -267,7 +268,7 @@ def bulk_payment(request):
             total = sum(p.amount for p in created)
             messages.success(request, f"{len(created)} payment{'s' if len(created) != 1 else ''} recorded "
                                       f"· {inr(total)}.")
-            return redirect(reverse("payments:bulk") + (f"?{ctx['filter_query']}" if ctx["filter_query"] else ""))
+            return finish(request, reverse("payments:bulk") + (f"?{ctx['filter_query']}" if ctx["filter_query"] else ""))
         ctx["ticked"] = ids
     ctx.update({"form": form, "upload_form": BulkUploadForm(),
                 "received_by_suggestions": received_by_suggestions(request.user)})
@@ -305,7 +306,7 @@ def bulk_upload(request):
         total = sum(p.amount for p in created)
         messages.success(request, f"{len(created)} payment{'s' if len(created) != 1 else ''} recorded from the file "
                                   f"· {inr(total)}.")
-        return redirect(back)
+        return finish(request, back)
     form = BulkUploadForm(request.POST, request.FILES)
     if not form.is_valid():
         messages.error(request, "Choose the filled-in CSV file first.")

@@ -40,40 +40,28 @@
   });
 
   // --- Back button -------------------------------------------------------------
-  // After saving a form, Back skips the finished form (and the page shown twice because
-  // of it) and returns to the list the doctor came from, with its filters and fresh data.
+  // Forms remember which page they were opened from (see core/backnav.py), so after
+  // saving the app steps back to it and Back keeps working like on a normal website.
   var here = location.pathname + location.search;
-  function store(key, value) {
-    try {
-      if (value === undefined) return sessionStorage.getItem(key);
-      if (value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, value);
-    } catch (e) { return null; }
+  var cameFrom = "";
+  if (document.referrer && document.referrer.indexOf(location.origin + "/") === 0) {
+    var r = new URL(document.referrer);
+    cameFrom = r.pathname + r.search;
   }
-  var navEntry = (performance.getEntriesByType && performance.getEntriesByType("navigation")[0]) || {};
-  var firstShow = true, leavingBack = false;
-  var skipForms = document.querySelectorAll("form[data-skip-on-back]");
-  if (navEntry.type === "navigate" && skipForms.length) store("skip:" + here, null);
-  skipForms.forEach(function (f) {
-    f.addEventListener("submit", function () { store("skip:" + here, "1"); });
-  });
-  window.addEventListener("pageshow", function (e) {
-    var back = e.persisted || (firstShow && navEntry.type === "back_forward");
-    firstShow = false;
-    leavingBack = false;
-    if (!back) return;
-    if (store("skip:" + here) || store("last-page") === here) {
-      leavingBack = true;  // a saved form, or the same page again: keep going back
-      history.back();
-    } else if (e.persisted) {
-      location.reload();  // restored from memory: show fresh data
+  document.querySelectorAll("input[data-back-field]").forEach(function (f) {
+    var parts = (f.value || "").split("|");
+    if (parts.length === 3 && /^\d+$/.test(parts[0])) {
+      f.value = (parseInt(parts[0], 10) + 1) + "|" + parts[1] + "|" + parts[2];  // shown again after an error
+    } else {
+      f.value = "0|" + here + "|" + cameFrom;
     }
   });
-  window.addEventListener("pagehide", function () { if (!leavingBack) store("last-page", here); });
+  // A page restored from the phone's memory may be out of date: reload it.
+  window.addEventListener("pageshow", function (e) { if (e.persisted) location.reload(); });
   // The app's back arrow works like the phone's Back button when there is a page to go back to.
   document.querySelectorAll("[data-back]").forEach(function (a) {
     a.addEventListener("click", function (e) {
-      var ref = document.referrer;
-      if (ref && ref.indexOf(location.origin + "/") === 0 && history.length > 1) {
+      if (cameFrom && history.length > 1) {
         e.preventDefault();
         history.back();
       }
